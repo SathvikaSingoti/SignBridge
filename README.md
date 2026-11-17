@@ -60,7 +60,7 @@ pip install -r ml/requirements.txt
 python ml/train.py signbridge-data-*.json        # k-NN vs Random Forest, 5-fold CV, confusion matrices
 ```
 
-**Flash the glove:** open `firmware/signbridge_glove/signbridge_glove.ino` in Arduino IDE or arduino-cli. Use the board *ESP32 Dev Module* and upload at 115200 baud. Wiring is in [the build guide](docs/build-guide.html); turning it into a wearable is in [glove assembly](docs/glove-assembly.md).
+**Flash the glove:** open `firmware/signbridge_glove/signbridge_glove.ino` in Arduino IDE or arduino-cli. Use the board *ESP32 Dev Module* and upload at 115200 baud. Wiring is in [the build guide](docs/build-guide.html).
 
 ## Hardware
 
