@@ -1,0 +1,5 @@
+# For ml/train.py (k-NN and Random Forest on exported recordings)
+numpy
+scikit-learn
+matplotlib
+# The fine-tuning notebook installs mediapipe-model-maker itself (run it in Google Colab).
