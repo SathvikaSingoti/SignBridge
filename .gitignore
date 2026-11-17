@@ -17,8 +17,6 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Local tool settings
-.claude/
 
 # Private local files (prototype photos, handoff notes)
 private/
