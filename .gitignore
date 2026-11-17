@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+
+# Exported recordings can hold personal data (hands, names): keep them out of git unless anonymised
+data/raw/
+*.zip
+
+# Outputs that train.py regenerates
+ml/confusion_matrix_*.png
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local tool settings
+.claude/
+
+# Private local files (prototype photos, handoff notes)
+private/
+HANDOFF.md

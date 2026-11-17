@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="600" viewBox="0 0 680 600" font-family="Arial,Helvetica,sans-serif">
+<title>SignBridge glove circuit schematic</title><rect width="680" height="600" fill="#FFFFFF"/>
+<rect x="40" y="40" width="150" height="500" rx="8" fill="#F4F5F1" stroke="#555" stroke-width="1"/>
+<text x="115" y="66" font-size="15" font-weight="bold" text-anchor="middle" fill="#1A1F1C">ESP32</text>
+<text x="180" y="105" font-size="14" text-anchor="end" fill="#1A1F1C">D32</text>
+<path d="M190 100H360M470 100H500M330 100V108M330 132V140" fill="none" stroke="#333" stroke-width="1.2"/>
+<circle cx="330" cy="100" r="3.5" fill="#333"/>
+<rect x="360" y="86" width="110" height="28" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+<text x="415" y="104" font-size="12" text-anchor="middle" fill="#085041">Thumb flex</text>
+<text x="506" y="104" font-size="12" fill="#1A1F1C">3V3</text>
+<rect x="322" y="108" width="16" height="24" rx="2" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.8"/>
+<text x="346" y="124" font-size="12" fill="#1A1F1C">10k</text>
+<text x="330" y="152" font-size="12" text-anchor="middle" fill="#1A1F1C">GND</text>
+<text x="180" y="175" font-size="14" text-anchor="end" fill="#1A1F1C">D33</text>
+<path d="M190 170H360M470 170H500M330 170V178M330 202V210" fill="none" stroke="#333" stroke-width="1.2"/>
+<circle cx="330" cy="170" r="3.5" fill="#333"/>
+<rect x="360" y="156" width="110" height="28" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+<text x="415" y="174" font-size="12" text-anchor="middle" fill="#085041">Index flex</text>
+<text x="506" y="174" font-size="12" fill="#1A1F1C">3V3</text>
+<rect x="322" y="178" width="16" height="24" rx="2" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.8"/>
+<text x="346" y="194" font-size="12" fill="#1A1F1C">10k</text>
+<text x="330" y="222" font-size="12" text-anchor="middle" fill="#1A1F1C">GND</text>
+<text x="180" y="245" font-size="14" text-anchor="end" fill="#1A1F1C">D34</text>
+<path d="M190 240H360M470 240H500M330 240V248M330 272V280" fill="none" stroke="#333" stroke-width="1.2"/>
+<circle cx="330" cy="240" r="3.5" fill="#333"/>
+<rect x="360" y="226" width="110" height="28" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+<text x="415" y="244" font-size="12" text-anchor="middle" fill="#085041">Middle flex</text>
+<text x="506" y="244" font-size="12" fill="#1A1F1C">3V3</text>
+<rect x="322" y="248" width="16" height="24" rx="2" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.8"/>
+<text x="346" y="264" font-size="12" fill="#1A1F1C">10k</text>
+<text x="330" y="292" font-size="12" text-anchor="middle" fill="#1A1F1C">GND</text>
+<text x="180" y="315" font-size="14" text-anchor="end" fill="#1A1F1C">D35</text>
+<path d="M190 310H360M470 310H500M330 310V318M330 342V350" fill="none" stroke="#333" stroke-width="1.2"/>
+<circle cx="330" cy="310" r="3.5" fill="#333"/>
+<rect x="360" y="296" width="110" height="28" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+<text x="415" y="314" font-size="12" text-anchor="middle" fill="#085041">Ring flex</text>
+<text x="506" y="314" font-size="12" fill="#1A1F1C">3V3</text>
+<rect x="322" y="318" width="16" height="24" rx="2" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.8"/>
+<text x="346" y="334" font-size="12" fill="#1A1F1C">10k</text>
+<text x="330" y="362" font-size="12" text-anchor="middle" fill="#1A1F1C">GND</text>
+<text x="180" y="385" font-size="14" text-anchor="end" fill="#1A1F1C">VP</text>
+<path d="M190 380H360M470 380H500M330 380V388M330 412V420" fill="none" stroke="#333" stroke-width="1.2"/>
+<circle cx="330" cy="380" r="3.5" fill="#333"/>
+<rect x="360" y="366" width="110" height="28" rx="4" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.8"/>
+<text x="415" y="384" font-size="12" text-anchor="middle" fill="#085041">Pinky flex</text>
+<text x="506" y="384" font-size="12" fill="#1A1F1C">3V3</text>
+<rect x="322" y="388" width="16" height="24" rx="2" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.8"/>
+<text x="346" y="404" font-size="12" fill="#1A1F1C">10k</text>
+<text x="330" y="432" font-size="12" text-anchor="middle" fill="#1A1F1C">GND</text>
+<text x="180" y="465" font-size="14" text-anchor="end" fill="#1A1F1C">D21</text>
+<text x="180" y="495" font-size="14" text-anchor="end" fill="#1A1F1C">D22</text>
+<path d="M190 460H400M190 490H400" fill="none" stroke="#333" stroke-width="1.2"/>
+<rect x="400" y="446" width="130" height="58" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.8"/>
+<text x="414" y="464" font-size="12" fill="#3C3489">SDA</text><text x="414" y="494" font-size="12" fill="#3C3489">SCL</text>
+<text x="490" y="480" font-size="14" font-weight="bold" text-anchor="middle" fill="#3C3489">MPU6050</text>
+<text x="544" y="468" font-size="12" fill="#1A1F1C">VCC → 3V3</text><text x="544" y="490" font-size="12" fill="#1A1F1C">GND → GND</text>
+<text x="340" y="578" font-size="12" text-anchor="middle" fill="#555">Every "3V3" joins the ESP32 3V3 pin; every "GND" joins its GND pin. Dot = joined.</text>
+</svg>

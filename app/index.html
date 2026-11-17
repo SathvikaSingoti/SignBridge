@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SignBridge</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --line: #dfe3ea; --ink: #14181f; --muted: #5d6675;
+    --accent: #0b7a5c; --accent-ink: #ffffff; --warn-bg: #fff4d6; --warn: #8a5a00; --bad: #b42318;
+    --me: #e5f4ee; --them: #e8eefc; --sim: #b42318;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 40px; }
+
+  header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 760px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .brand { font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+  .brand span { color: var(--accent); }
+  .spacer { flex: 1; }
+  .src { font-size: 13px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #aab1bd; }
+  .dot.live { background: var(--accent); }
+  .simbanner { display: none; background: var(--sim); color: #fff; font-weight: 700; font-size: 13px; text-align: center; padding: 5px 12px; }
+  .simbanner.show { display: block; }
+  .tabs { max-width: 760px; margin: 0 auto; padding: 0 16px; display: flex; gap: 4px; }
+  .tabs button { border: 0; background: transparent; padding: 8px 14px; border-bottom: 3px solid transparent; font-weight: 600; color: var(--muted); }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-color: var(--accent); }
+
+  .btn { border: 1px solid var(--line); background: var(--panel); padding: 9px 14px; border-radius: 10px; font-weight: 600; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.big { padding: 14px 20px; font-size: 18px; width: 100%; }
+  .btn.danger { color: var(--bad); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row > .grow { flex: 1; min-width: 0; }
+
+  section[hidden] { display: none; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-top: 14px; }
+  .card h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .hint { color: var(--muted); font-size: 14px; margin: 6px 0 0; }
+  .msg { background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 8px 12px; font-size: 14px; margin-top: 10px; }
+  .msg:empty { display: none; }
+  kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font: inherit; font-size: 13px; background: var(--bg); }
+
+  /* Talk */
+  .now { text-align: center; padding: 6px 0 2px; }
+  .now .label { font-size: 38px; font-weight: 800; letter-spacing: -0.02em; min-height: 52px; }
+  .now .label.unsure { color: #9aa2ae; }
+  .meter { height: 10px; background: var(--bg); border-radius: 99px; overflow: hidden; margin: 6px 0 4px; position: relative; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .1s; }
+  .meter b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+  .chat { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; padding: 2px; }
+  .bubble { padding: 10px 14px; border-radius: 14px; max-width: 88%; }
+  .bubble.glove { background: var(--me); align-self: flex-start; }
+  .bubble.them { background: var(--them); align-self: flex-end; font-size: 24px; font-weight: 600; }
+  .bubble small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+  .live { font-size: 28px; font-weight: 700; min-height: 40px; color: var(--muted); }
+  .phrases { display: flex; flex-wrap: wrap; gap: 6px; }
+  .phrases button { border: 1px solid var(--line); background: var(--bg); border-radius: 99px; padding: 6px 12px; font-size: 14px; }
+
+  /* Train */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--bg); border-radius: 99px; padding: 6px 6px 6px 12px; font-size: 14px; }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .chip .n { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .chip .x { border: 0; background: transparent; padding: 0 6px; opacity: .6; }
+  .progress { height: 12px; background: var(--bg); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); }
+  input[type=text] { border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; background: var(--panel); width: 100%; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  .cm { overflow-x: auto; margin-top: 10px; }
+  .cm td, .cm th { text-align: center; padding: 3px 5px; font-size: 12px; }
+  .cm th.r { text-align: right; }
+
+  /* Setup */
+  .fingers { display: grid; gap: 8px; }
+  .fbar { display: grid; grid-template-columns: 64px 1fr 52px 58px; gap: 8px; align-items: center; font-size: 14px; }
+  .fbar .track { height: 14px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+  .fbar .track i { display: block; height: 100%; width: 0; background: var(--accent); }
+  .fbar output { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .fbar.off span, .fbar.off output { opacity: .45; text-decoration: line-through; }
+  .fbar label { font-size: 13px; color: var(--muted); display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
+  input[type=number] { width: 74px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--panel); color: var(--ink); font: inherit; }
+  .sesslist { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; margin-top: 12px; }
+  .sessitem { display: flex; align-items: center; gap: 8px; font-size: 14px; border: 1px solid var(--line); border-radius: 10px; padding: 7px 9px; min-width: 0; }
+  .sessitem .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sessitem .mini { flex: 1; min-width: 30px; height: 6px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+  .sessitem .mini i { display: block; height: 100%; background: var(--accent); }
+  .sessitem output { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .sessitem.now { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .prompt { margin-top: 12px; padding: 16px; border-radius: 12px; background: var(--accent); color: var(--accent-ink); text-align: center; display: grid; gap: 4px; }
+  .prompt[hidden] { display: none; }
+  .prompt b { font-size: clamp(30px, 8vw, 48px); line-height: 1.1; text-transform: uppercase; letter-spacing: .02em; }
+  .gmap { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 14px; }
+  .gmap label { display: grid; grid-template-columns: 112px 1fr; align-items: center; gap: 8px; font-size: 14px; }
+  .gmap select { padding: 6px 8px; }
+  .gmap .hit { color: var(--accent); font-weight: 700; }
+  .imu { font-family: ui-monospace, Consolas, monospace; font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .simkeys { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 10px; }
+  .simkeys button { padding: 10px 0; touch-action: none; user-select: none; }
+  .simkeys button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  /* Camera */
+  .cam { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #10141b; border-radius: 10px; overflow: hidden; }
+  .cam video, .cam canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .cam.mirror video, .cam.mirror canvas { transform: scaleX(-1); }
+  .camstatus { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.6); color: #fff; font-size: 13px; padding: 3px 8px; border-radius: 6px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">Sign<span>Bridge</span></div>
+    <div class="spacer"></div>
+    <span class="src"><span class="dot" id="dot"></span><span id="srcText">No glove</span></span>
+    <button class="btn" id="camBtn">Use camera</button>
+    <button class="btn primary" id="connectBtn">Connect glove</button>
+  </div>
+  <div class="simbanner" id="simBanner">SIMULATED INPUT from the keyboard, not from the glove</div>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="talk">Talk</button>
+    <button role="tab" aria-selected="false" data-tab="train">Train</button>
+    <button role="tab" aria-selected="false" data-tab="setup">Glove setup</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card" id="camCard" hidden>
+    <div class="cam" id="camBox">
+      <video id="camVideo" playsinline muted></video><canvas id="camCanvas"></canvas>
+      <span class="camstatus" id="camStatus"></span>
+    </div>
+    <div class="row" style="margin-top: 8px">
+      <button class="btn" id="flipBtn">Switch camera</button>
+      <select id="handMode" class="btn" aria-label="Which hand to track">
+        <option value="right">Right hand only</option><option value="left">Left hand only</option><option value="both">Both hands</option>
+      </select>
+      <span class="spacer"></span>
+      <button class="btn" id="camStop">Stop camera</button>
+    </div>
+    <p class="hint">The tracked hand is drawn in green; any other hand in grey and ignored. Hand tracking runs on this device, and no video is sent anywhere.</p>
+  </div>
+
+  <!-- ============ TALK ============ -->
+  <section id="tab-talk">
+    <div class="card">
+      <h2>Signing</h2>
+      <div class="row" style="margin-bottom: 10px">
+        <label for="engine" style="font-size: 14px; color: var(--muted)">Model</label>
+        <select id="engine" class="btn grow">
+          <option value="google">Google pre-trained gestures (camera, no training)</option>
+          <option value="ours">SignBridge fine-tuned ISL model (camera)</option>
+          <option value="knn">k-NN on your recordings (camera or glove)</option>
+        </select>
+      </div>
+      <p class="hint" id="engineNote" style="margin: -4px 0 10px"></p>
+      <div class="now"><div class="label unsure" id="nowLabel">–</div></div>
+      <div class="meter"><i id="confBar"></i><b id="thrMark"></b></div>
+      <div class="row" style="justify-content: space-between; font-size: 13px; color: var(--muted)">
+        <span id="nowConf">confidence –</span><span>speaks above <output id="thrOut">80%</output></span>
+      </div>
+      <input id="thr" type="range" min="50" max="95" value="80" aria-label="Confidence needed to speak" style="width: 100%; accent-color: var(--accent)">
+      <div class="row" style="margin-top: 8px">
+        <button class="btn primary grow" id="recogBtn">Start recognising</button>
+        <label class="row" style="gap: 6px; font-size: 14px"><input type="checkbox" id="speakOn" checked> Speak aloud</label>
+      </div>
+      <p class="msg" id="talkMsg"></p>
+    </div>
+
+    <div class="card" id="gmapCard">
+      <h2>Gesture → phrase</h2>
+      <p class="hint" style="margin-top: 0">Google's pre-trained model knows 7 everyday gestures, not ISL. Choose what each one should say. The fine-tuned model recognises your own signs instead.</p>
+      <div class="gmap" id="gmap"></div>
+    </div>
+
+    <div class="card">
+      <h2>Conversation</h2>
+      <div class="chat" id="chat" aria-live="polite"></div>
+      <div class="live" id="liveText"></div>
+      <div class="row" style="margin-top: 8px">
+        <button class="btn primary grow" id="listenBtn">Listen to reply</button>
+        <select id="sttLang" class="btn" aria-label="Reply language">
+          <option value="en-IN">English (India)</option><option value="hi-IN">Hindi</option>
+        </select>
+      </div>
+      <p class="hint">The hearing person speaks, and their words appear here in large text.</p>
+    </div>
+
+    <div class="card">
+      <h2>Tap to speak</h2>
+      <div class="phrases" id="phrases"></div>
+      <p class="hint">Backup when a sign isn't recognised. These are marked "tapped" in the conversation.</p>
+    </div>
+  </section>
+
+  <!-- ============ TRAIN ============ -->
+  <section id="tab-train" hidden>
+    <div class="card">
+      <h2>1. Pick a sign</h2>
+      <div class="chips" id="chips"></div>
+      <div class="row" style="margin-top: 10px">
+        <input type="text" class="grow" id="newName" placeholder="New sign, e.g. medicine" style="flex: 1 1 140px">
+        <input type="text" class="grow" id="newSay" placeholder="Spoken phrase, e.g. I need medicine" style="flex: 2 1 200px">
+        <button class="btn" id="addSign">Add</button>
+      </div>
+      <p class="hint"><b>rest</b> is your relaxed hand and random movement between signs. Record it as often as any sign: it's what keeps the glove quiet when you're not signing.</p>
+    </div>
+
+    <div class="card">
+      <h2>2. Record it</h2>
+      <div class="row">
+        <input type="text" class="grow" id="who" placeholder="Who is signing (e.g. Aman)" style="flex: 1 1 160px">
+      </div>
+      <button class="btn primary big" id="recBtn" style="margin-top: 10px">Record</button>
+      <div class="progress"><i id="recBar"></i></div>
+      <p class="hint" id="recText">Press Record (or the glove button). After the 3-second countdown, hold or perform the sign for 1.2 seconds. Aim for 30+ per sign, from every teammate.</p>
+      <div class="row" style="margin-top: 10px">
+        <button class="btn" id="undoBtn">Undo last</button>
+        <span class="spacer"></span>
+        <span class="hint" id="totals" style="margin: 0"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Guided dataset session</h2>
+      <p class="hint" style="margin-top: 0">Records the ticked signs in turns, least-recorded first, until each one reaches the target. Hands-free: follow the big prompt and do each sign after the countdown.</p>
+      <div class="row" style="margin-top: 10px">
+        <label class="row" style="gap: 8px">Recordings per sign <input type="number" id="sessTarget" min="1" max="200" value="20"></label>
+        <span class="spacer"></span>
+        <button class="btn primary" id="sessBtn">Start session</button>
+      </div>
+      <div class="sesslist" id="sessList"></div>
+      <div class="prompt" id="sessPrompt" hidden><span id="sessStep"></span><b id="sessSign"></b><span id="sessSay"></span></div>
+      <p class="hint" id="sessMsg"></p>
+    </div>
+
+    <div class="card">
+      <h2>3. Test accuracy</h2>
+      <div class="row">
+        <select id="evalKind" class="btn" aria-label="Which recordings to test">
+          <option value="cam">Camera recordings</option><option value="glove">Glove recordings</option>
+        </select>
+        <button class="btn primary" id="evalBtn">Run test</button>
+      </div>
+      <p class="hint">Leave-one-out test: each recording is classified by a model trained on all the others. These are real numbers you can report.</p>
+      <div id="evalOut"></div>
+    </div>
+
+    <div class="card">
+      <h2>Data</h2>
+      <div class="row">
+        <button class="btn" id="exportBtn">Export data (.json)</button>
+        <label class="btn">Import and merge<input type="file" id="importFile" accept=".json,application/json" hidden></label>
+        <span class="spacer"></span>
+        <button class="btn danger" id="clearBtn">Delete all recordings</button>
+      </div>
+      <div class="row" style="margin-top: 10px">
+        <button class="btn" id="photoZipBtn">Download photo dataset (.zip)</button>
+        <span class="hint" id="photoCount" style="margin: 0"></span>
+      </div>
+      <p class="hint">Camera recordings also save 3 photos each. The zip has one folder per sign (rest becomes <code>none</code>) and goes straight into <code>ml/finetune_gesture_recognizer.ipynb</code> to fine-tune Google's model on your signs.</p>
+      <p class="hint">Export from each phone or laptop and merge, so the model learns from everyone's hands. <code>train.py</code> reads the same file for the Python version.</p>
+      <p class="msg" id="dataMsg"></p>
+    </div>
+  </section>
+
+  <!-- ============ SETUP ============ -->
+  <section id="tab-setup" hidden>
+    <div class="card">
+      <h2>Finger bend <span id="rate" style="float: right; text-transform: none; letter-spacing: 0"></span></h2>
+      <div class="fingers" id="fbars"></div>
+      <p class="hint" id="fingerNote"></p>
+      <div class="imu" id="imuText"></div>
+      <div class="row" style="margin-top: 12px">
+        <button class="btn primary" id="calBtn" disabled>Calibrate</button>
+        <button class="btn" id="zeroBtn" disabled title="Flex sensors creep: their resting value slowly shifts. This re-measures the open hand only, in 1.5 s.">Re-zero open hand</button>
+        <span class="hint" id="calText" style="margin: 0"></span>
+      </div>
+      <p class="msg" id="setupMsg"></p>
+    </div>
+
+    <div class="card">
+      <h2>Keyboard simulation</h2>
+      <p class="hint" style="margin-top: 0">For working on the app without the glove. While it's on, a red banner says so on every screen, and anything you record is labelled as simulated.</p>
+      <label class="row" style="margin-top: 8px"><input type="checkbox" id="simOn"> Use keyboard simulation</label>
+      <div class="simkeys" id="simkeys"></div>
+      <p class="hint">Hold <kbd>1</kbd>–<kbd>5</kbd> to bend thumb to pinky, arrow keys tilt, <kbd>Space</kbd> shakes.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
+// Two kinds of input, each with its own recordings and model:
+//   glove  = 11 numbers per frame at 50 Hz (5 bends, accel, gyro)
+//   cam    = 132 numbers per frame at 25 Hz (up to 2 hands x 21 tracked points from the phone camera)
+const WINS = { glove: 60, cam: 30 };   // frames per recording / recognition window: 1.2 s either way
+const STEPS = { glove: 5, cam: 3 };    // how often to run the model, in frames (about 10 and 8 times a second)
+const kindNow = () => inp.src === 'cam' ? 'cam' : 'glove';
+const kindOfSample = s => s.kind || (s.src === 'cam' ? 'cam' : 'glove');
+const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e', NUS_TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+
+const DEFAULT_VOCAB = [
+  ['rest', ''], ['help', 'Please help me'], ['doctor', 'I need a doctor'], ['police', 'Please call the police'],
+  ['water', 'I need water'], ['pain', 'I am in pain'], ['yes', 'Yes'], ['no', 'No'], ['thank you', 'Thank you'],
+  ['hospital', 'Take me to a hospital'], ['family', 'Please call my family'], ['stop', 'Stop'],
+].map(([name, say]) => ({ name, say }));
+
+/* ---------------- stored data ---------------- */
+let data = { vocab: DEFAULT_VOCAB, samples: [], cal: null };
+const idb = {
+  db: null,
+  open() { return new Promise((res, rej) => { const r = indexedDB.open('signbridge', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(this.db = r.result); r.onerror = () => rej(r.error); }); },
+  get(k) { return new Promise((res, rej) => { const r = this.db.transaction('kv').objectStore('kv').get(k); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  set(k, v) { return new Promise((res, rej) => { const t = this.db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); },
+  keys() { return new Promise((res, rej) => { const r = this.db.transaction('kv').objectStore('kv').getAllKeys(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  del(k) { return new Promise((res, rej) => { const t = this.db.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = res; t.onerror = () => rej(t.error); }); },
+};
+let saveTimer = null;
+function save() {
+  models = {};
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try { if (idb.db) await idb.set('data', data); else throw 0; }
+    catch (e) { $('dataMsg').textContent = 'This browser is not saving recordings. Export your data before closing the page.'; }
+  }, 300);
+}
+const vocabOf = name => data.vocab.find(v => v.name === name);
+
+/* ---------------- input: glove or simulation ---------------- */
+// A frame is 11 numbers: bend 0..1 for 5 fingers, accel x y z in g, gyro x y z in 100 deg/s.
+const inp = { src: 'none', raw: [0, 0, 0, 0, 0], frame: new Array(11).fill(0), flags: 0, mpu: false, count: 0, device: null, buf: [], n: 0, rec: null };
+const bendOf = (i, raw) => {
+  const c = data.cal; if (!c) return clamp(raw / 4095, 0, 1);
+  const span = c.fist[i] - c.open[i]; if (Math.abs(span) < 20) return 0;
+  return clamp((raw - c.open[i]) / span, 0, 1);
+};
+function pushFrame(f) {
+  const W = WINS[kindNow()];
+  if (inp.src !== 'cam') inp.frame = f;
+  inp.buf.push(f); if (inp.buf.length > W) inp.buf.shift();
+  if (inp.rec) { inp.rec.frames.push(f); $('recBar').style.width = (inp.rec.frames.length / W * 100) + '%';
+    if (inp.src === 'cam' && [8, 15, 22].includes(inp.rec.frames.length)) inp.rec.photos.push(grabPhoto());   // 3 photos for fine-tuning
+    if (inp.rec.frames.length >= W) { const r = inp.rec; inp.rec = null; r.done(r.frames); } }
+  if (++inp.n % STEPS[kindNow()] === 0) recognise();
+}
+function setSource(src) {
+  if (inp.src === 'cam' && src !== 'cam') stopCamera(true);
+  inp.src = src; inp.buf = []; inp.rec = null; rec.hist = [];
+  $('dot').classList.toggle('live', src === 'ble' || src === 'cam');
+  $('srcText').textContent = src === 'ble' ? (inp.device.name || 'Glove connected') : src === 'sim' ? 'Simulated' : src === 'cam' ? 'Camera' : 'No input';
+  $('camBtn').textContent = src === 'cam' ? 'Stop camera' : 'Use camera';
+  if (src !== 'none') $('evalKind').value = kindNow();
+  renderTrain();
+  $('simBanner').classList.toggle('show', src === 'sim');
+  $('calBtn').disabled = src !== 'ble'; $('zeroBtn').disabled = src !== 'ble';
+  $('connectBtn').textContent = src === 'ble' ? 'Disconnect' : 'Connect glove';
+  $('simOn').checked = src === 'sim'; $('simOn').disabled = src === 'ble' || src === 'cam';
+  if (src !== 'ble') $('rate').textContent = '';
+  renderEngine();
+}
+
+async function connect() {
+  if (inp.device) { inp.device.gatt.disconnect(); return; }
+  try {
+    const dev = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'SignBridge' }, { services: [NUS] }], optionalServices: [NUS] });
+    dev.addEventListener('gattserverdisconnected', () => { inp.device = null; if (inp.src === 'ble') { setSource('none'); setMsg('setupMsg', 'Glove disconnected.'); } });
+    const ch = await (await (await dev.gatt.connect()).getPrimaryService(NUS)).getCharacteristic(NUS_TX);
+    await ch.startNotifications();
+    ch.addEventListener('characteristicvaluechanged', e => onPacket(e.target.value));
+    inp.device = dev; setSource('ble'); inp.raw = [0, 0, 0, 0, 0]; setMsg('setupMsg', data.cal ? '' : 'Not calibrated yet. Open Glove setup and press Calibrate.');
+  } catch (err) { if (err.name !== 'NotFoundError') alert('Could not connect: ' + err.message); }
+}
+let lastFlags = 0;
+function onPacket(dv) {
+  if (dv.byteLength < 17) return;
+  inp.count++;
+  const f = new Array(11);
+  for (let i = 0; i < 5; i++) { inp.raw[i] = dv.getUint16(i * 2, true); f[i] = bendOf(i, inp.raw[i]); }
+  for (let j = 0; j < 3; j++) f[5 + j] = dv.getInt8(10 + j) / 32;          // g
+  for (let j = 0; j < 3; j++) f[8 + j] = dv.getInt8(13 + j) * 8 / 100;     // 100 deg/s
+  const fl = dv.getUint8(16); inp.mpu = !!(fl & 2);
+  if ((fl & 1) && !(lastFlags & 1)) gloveButton();
+  lastFlags = fl;
+  pushFrame(f);
+}
+setInterval(() => { if (inp.src === 'ble') $('rate').textContent = inp.count + ' packets/s'; inp.count = 0; }, 1000);
+
+// Keyboard simulation (clearly labelled, see the red banner)
+const sim = { bend: [0, 0, 0, 0, 0], target: [0, 0, 0, 0, 0], roll: 0, pitch: 0, keys: { l: 0, r: 0, u: 0, d: 0 }, shake: 0, held: new Set() };
+setInterval(() => {
+  if (inp.src !== 'sim') return;
+  const r0 = sim.roll, p0 = sim.pitch;
+  for (let i = 0; i < 5; i++) sim.bend[i] += (sim.target[i] - sim.bend[i]) * 0.35;
+  sim.roll += ((sim.keys.r - sim.keys.l) * 0.8 - sim.roll) * 0.15; sim.pitch += ((sim.keys.u - sim.keys.d) * 0.8 - sim.pitch) * 0.15;
+  const nz = () => (Math.random() - 0.5) * 0.02;
+  const sh = sim.shake > 0 ? Math.sin(sim.shake * 0.9) * 4 : 0; sim.shake = Math.max(0, sim.shake - 1);
+  pushFrame([...sim.bend.map(b => clamp(b + nz(), 0, 1)),
+    -Math.sin(sim.pitch) + nz(), Math.sin(sim.roll) * Math.cos(sim.pitch) + nz(), Math.cos(sim.roll) * Math.cos(sim.pitch) + nz(),
+    (sim.roll - r0) * 50 * 57.3 / 100 + sh + nz(), (sim.pitch - p0) * 50 * 57.3 / 100 + nz(), sh * 0.5 + nz()]);
+}, 20);
+const simFinger = (i, on, tag) => { if (on) sim.held.add(tag + i); else sim.held.delete(tag + i);
+  sim.target[i] = (sim.held.has('k' + i) || sim.held.has('p' + i)) ? 1 : 0; $('simkeys').children[i].classList.toggle('on', !!sim.target[i]); };
+addEventListener('keydown', e => {
+  if (inp.src !== 'sim' || e.target.tagName === 'INPUT' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toLowerCase(), map = { arrowleft: 'l', arrowright: 'r', arrowup: 'u', arrowdown: 'd' };
+  if ('12345'.includes(k) && k.length === 1) { e.preventDefault(); simFinger(+k - 1, true, 'k'); }
+  else if (map[k]) { e.preventDefault(); sim.keys[map[k]] = 1; }
+  else if (k === ' ') { e.preventDefault(); if (!e.repeat) sim.shake = 20; }
+});
+addEventListener('keyup', e => {
+  const k = e.key.toLowerCase(), map = { arrowleft: 'l', arrowright: 'r', arrowup: 'u', arrowdown: 'd' };
+  if ('12345'.includes(k) && k.length === 1) simFinger(+k - 1, false, 'k');
+  else if (map[k]) sim.keys[map[k]] = 0;
+});
+
+/* ---------------- the model: k-nearest neighbours, runs in this page ---------------- */
+// Features of a 1.2 s window: the window split into 6 parts, averaged (finger bend + accel = hand shape and
+// orientation over time), plus how much each finger moved, plus how hard the hand rotated (gyro).
+const features = (fr, kind) => kind === 'cam' ? camFeatures(fr) : gloveFeatures(fr);
+// Camera: the window split into 4 parts, each averaged (hand shapes, which hands are visible, where they are),
+// plus how fast each wrist moved.
+function camFeatures(fr) {
+  const out = [], n = fr.length, D = fr[0].length, SEG = 4;
+  for (let s = 0; s < SEG; s++) {
+    const a = Math.floor(s * n / SEG), b = Math.floor((s + 1) * n / SEG), acc = new Array(D).fill(0);
+    for (let k = a; k < b; k++) for (let j = 0; j < D; j++) acc[j] += fr[k][j];
+    for (let j = 0; j < D; j++) out.push(acc[j] / (b - a));
+  }
+  for (let h = 0; h < 2; h++) {
+    const p = h * 66 + 63; let mx = 0, my = 0, c = 0;
+    for (let k = 1; k < n; k++) if (fr[k][p] && fr[k - 1][p]) { mx += Math.abs(fr[k][p + 1] - fr[k - 1][p + 1]); my += Math.abs(fr[k][p + 2] - fr[k - 1][p + 2]); c++; }
+    out.push(c ? mx / c * 20 : 0, c ? my / c * 20 : 0);
+  }
+  return out;
+}
+function gloveFeatures(fr) {
+  const out = [], n = fr.length, SEG = 6;
+  for (let s = 0; s < SEG; s++) {
+    const a = Math.floor(s * n / SEG), b = Math.floor((s + 1) * n / SEG), acc = new Array(8).fill(0);
+    for (let k = a; k < b; k++) for (let j = 0; j < 8; j++) acc[j] += fr[k][j];
+    for (let j = 0; j < 8; j++) out.push(acc[j] / (b - a));
+  }
+  for (let j = 0; j < 5; j++) { let lo = 9, hi = -9; for (const f of fr) { lo = Math.min(lo, f[j]); hi = Math.max(hi, f[j]); } out.push(hi - lo); }
+  for (let j = 8; j < 11; j++) { let m = 0, mx = 0; for (const f of fr) { const v = Math.abs(f[j]); m += v; mx = Math.max(mx, v); } out.push(m / n, mx); }
+  return out;
+}
+// Finger shape counts most; orientation and motion a bit less. A finger switched off in Glove setup counts 0,
+// so a broken sensor doesn't confuse the model.
+const useFinger = i => !data.useFinger || data.useFinger[i] !== false;
+const WEIGHT = (kind, j) => {
+  if (kind === 'cam') return 1;
+  if (j < 48) { const c = j % 8; return c < 5 ? (useFinger(c) ? 1 : 0) : 0.6; }
+  if (j < 53) return useFinger(j - 48) ? 1 : 0;
+  return 0.6;
+};
+
+let models = {};                      // one model per kind, rebuilt after any change to the recordings
+const modelFor = kind => kind in models ? models[kind] : (models[kind] = train(kind));
+function train(kind) {
+  const S = data.samples.filter(s => vocabOf(s.label) && kindOfSample(s) === kind);
+  if (S.length < 2 || new Set(S.map(s => s.label)).size < 2) return null;
+  const X = S.map(s => features(s.frames, kind)), d = X[0].length, n = X.length;
+  const mu = new Array(d).fill(0), sd = new Array(d).fill(0);
+  for (const x of X) x.forEach((v, j) => mu[j] += v / n);
+  for (const x of X) x.forEach((v, j) => sd[j] += (v - mu[j]) ** 2 / n);
+  for (let j = 0; j < d; j++) sd[j] = Math.max(Math.sqrt(sd[j]), 0.05);
+  const Z = X.map(x => x.map((v, j) => (v - mu[j]) / sd[j] * WEIGHT(kind, j)));
+  const per = {}; for (const s of S) per[s.label] = (per[s.label] || 0) + 1;
+  const k = clamp(Math.min(...Object.values(per)) - 1, 1, 5);    // fewer neighbours while a sign has few recordings
+  const m = { kind, k, mu, sd, Z, y: S.map(s => s.label), src: S.map(s => s.src), who: S.map(s => s.who), far: Infinity };
+  // "Too far from anything we've seen" distance: 3x the typical nearest-neighbour distance
+  const nn = Z.map((z, i) => knn(m, z, i).nearest).filter(Number.isFinite).sort((a, b) => a - b);
+  m.far = (nn[Math.floor(nn.length / 2)] || 1) * 3;
+  return m;
+}
+function knn(m, z, skip = -1) {
+  const dist = [];
+  for (let i = 0; i < m.Z.length; i++) { if (i === skip) continue;
+    let s = 0; const r = m.Z[i]; for (let j = 0; j < z.length; j++) s += (z[j] - r[j]) ** 2; dist.push([Math.sqrt(s), m.y[i]]); }
+  dist.sort((a, b) => a[0] - b[0]);
+  const k = Math.min(m.k || 5, dist.length), votes = {};
+  for (let i = 0; i < k; i++) votes[dist[i][1]] = (votes[dist[i][1]] || 0) + 1;
+  let label = null, best = 0; for (const l in votes) if (votes[l] > best) { best = votes[l]; label = l; }
+  return { label, conf: k ? best / k : 0, nearest: dist.length ? dist[0][0] : Infinity };
+}
+const toZ = (m, fr) => features(fr, m.kind).map((v, j) => (v - m.mu[j]) / m.sd[j] * WEIGHT(m.kind, j));
+
+/* ---------------- live recognition ---------------- */
+const rec = { on: false, hist: [], spoken: null, armed: true, lastSpeak: 0 };
+function recognise() {
+  if (!rec.on) return;
+  let p, unknown = false;
+  if (usesGestureModel()) {
+    p = gesturePredict();
+    if (!p) { setMsg('talkMsg', 'Show your ' + (handMode() === 'both' ? '' : handMode() + ' ') + 'hand to the camera.'); p = { label: 'rest', conf: 0 }; }
+    else setMsg('talkMsg', '');
+  } else {
+    if (inp.buf.length < WINS[kindNow()]) return;
+    const model = modelFor(kindNow());
+    if (!model) { setMsg('talkMsg', `Record at least two signs (one can be rest) with the ${kindNow() === 'cam' ? 'camera' : 'glove'} in the Train tab first.`); return; }
+    setMsg('talkMsg', '');
+    p = knn(model, toZ(model, inp.buf));
+    unknown = p.nearest > model.far;
+  }
+  const sure = !unknown && p.conf >= $('thr').value / 100;
+  $('confBar').style.width = (p.conf * 100) + '%';
+  $('nowConf').textContent = unknown ? 'not like any recording' : `confidence ${Math.round(p.conf * 100)}%`;
+  $('nowLabel').textContent = unknown || p.label === 'rest' ? '–' : p.label;
+  $('nowLabel').classList.toggle('unsure', !sure || p.label === 'rest');
+
+  const label = sure ? p.label : '?';
+  rec.hist.push(label); if (rec.hist.length > 4) rec.hist.shift();
+  const stable = rec.hist.length === 4 && rec.hist.every(l => l === label);
+  if (!stable) return;
+  if (label !== rec.spoken) rec.armed = true;             // something else (or rest) since the last word
+  if (label === '?' || label === 'rest' || !rec.armed || performance.now() - rec.lastSpeak < 1200) return;
+  rec.spoken = label; rec.armed = false; rec.lastSpeak = performance.now();
+  const v = vocabOf(label);
+  say(v && v.say ? v.say : label, `signed "${label}" · ${Math.round(p.conf * 100)}%`);
+}
+function say(text, meta) {
+  addBubble('glove', text, meta);
+  if (!$('speakOn').checked || !window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text); u.lang = 'en-IN';
+  const voice = speechSynthesis.getVoices().find(v => v.lang.replace('_', '-') === 'en-IN');
+  if (voice) u.voice = voice;
+  speechSynthesis.speak(u);
+}
+function addBubble(who, text, meta) {
+  const b = document.createElement('div'); b.className = 'bubble ' + who;
+  b.textContent = text;
+  const s = document.createElement('small'); s.textContent = meta; b.appendChild(s);
+  $('chat').appendChild(b); $('chat').scrollTop = $('chat').scrollHeight;
+}
+$('recogBtn').onclick = () => {
+  rec.on = !rec.on; rec.hist = []; rec.armed = true; rec.spoken = null;
+  $('recogBtn').textContent = rec.on ? 'Stop recognising' : 'Start recognising';
+  if (!rec.on) { $('nowLabel').textContent = '–'; $('confBar').style.width = '0'; $('nowConf').textContent = 'confidence –'; setMsg('talkMsg', ''); }
+  else if (inp.src === 'none') setMsg('talkMsg', 'No input yet. Press Use camera or Connect glove.');
+};
+const thrUpdate = () => { $('thrOut').textContent = $('thr').value + '%'; $('thrMark').style.left = $('thr').value + '%'; };
+$('thr').oninput = thrUpdate; thrUpdate();
+
+/* ---------------- speech to text for the hearing person ---------------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let listening = null;
+$('listenBtn').onclick = () => {
+  if (!SR) { alert('This browser has no speech recognition. Use Chrome.'); return; }
+  if (listening) { listening.stop(); return; }
+  const r = new SR(); r.lang = $('sttLang').value; r.interimResults = true; r.continuous = false;
+  r.onresult = e => {
+    let text = ''; for (const res of e.results) text += res[0].transcript;
+    const final = e.results[e.results.length - 1].isFinal;
+    if (final) { $('liveText').textContent = ''; addBubble('them', text, 'heard'); } else $('liveText').textContent = text;
+  };
+  r.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') setMsg('talkMsg', 'Listening failed: ' + e.error); };
+  r.onend = () => { listening = null; $('listenBtn').textContent = 'Listen to reply'; $('liveText').textContent = ''; };
+  r.start(); listening = r; $('listenBtn').textContent = 'Listening… tap to stop';
+};
+
+/* ---------------- recording ---------------- */
+let selected = 'rest', recording = false;
+// Returns true when a recording was saved.
+async function record() {
+  if (recording) return false;
+  if (inp.src === 'none') { $('recText').textContent = 'Turn on the camera or connect the glove first.'; return false; }
+  recording = true; $('recBtn').disabled = true;
+  for (let s = 3; s > 0; s--) { $('recBtn').textContent = `Get ready… ${s}`; $('recBar').style.width = '0'; await new Promise(r => setTimeout(r, 700)); }
+  $('recBtn').textContent = `Sign "${selected}" now`;
+  const src = inp.src, kind = kindNow();
+  const photos = [];
+  const frames = await new Promise(done => { inp.rec = { frames: [], photos, done }; });
+  if (inp.src !== src) { $('recBtn').textContent = 'Record'; $('recBtn').disabled = false; recording = false; return false; }   // input changed mid-recording
+  if (kind === 'cam' && frames.filter(f => f[63] || f[129]).length < frames.length / 2) {
+    $('recBtn').textContent = 'Record'; $('recBtn').disabled = false; recording = false;
+    $('recText').textContent = 'Not saved: no hands were visible for most of the recording. Step back so your hands are in view.'; return false;
+  }
+  const sample = { label: selected, src, kind, who: $('who').value.trim(), t: Date.now(), frames: frames.map(f => f.map(v => Math.round(v * 1000) / 1000)) };
+  data.samples.push(sample);
+  save(); renderTrain();
+  if (photos.length) Promise.all(photos).then(b => savePhotos(sample, b)).catch(() => {});
+  $('recBtn').textContent = 'Record'; $('recBtn').disabled = false; recording = false;
+  $('recText').textContent = `Saved "${selected}"${src === 'sim' ? ' (simulated)' : ''}. Relax your hand, then record again.`;
+  return true;
+}
+
+/* ---------------- guided dataset session ---------------- */
+const sess = { on: false };
+const DEFAULT_SESSION = ['rest', 'help', 'water', 'doctor', 'yes', 'no'];
+const sessSigns = () => (data.session && data.session.signs || DEFAULT_SESSION).filter(n => vocabOf(n));
+const sessTarget = () => clamp(Math.round(+$('sessTarget').value || 20), 1, 200);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function renderSession() {
+  const box = $('sessList'), on = new Set(sessSigns()), kind = kindNow(), target = sessTarget();
+  box.innerHTML = '';
+  for (const v of data.vocab) {
+    const n = countOf(v.name, kind), row = document.createElement('label');
+    row.className = 'sessitem' + (sess.on && v.name === selected ? ' now' : '');
+    row.innerHTML = '<input type="checkbox"><span class="nm"></span><span class="mini"><i></i></span><output></output>';
+    const cb = row.children[0]; cb.checked = on.has(v.name); cb.disabled = sess.on; cb.id = 'sess-' + v.name.replace(/\W+/g, '-');
+    cb.onchange = () => {
+      const s = new Set(sessSigns()); cb.checked ? s.add(v.name) : s.delete(v.name);
+      data.session = { ...(data.session || {}), signs: data.vocab.map(w => w.name).filter(x => s.has(x)) }; save(); renderSession();
+    };
+    row.children[1].textContent = v.name;
+    row.querySelector('.mini i').style.width = Math.min(100, n / target * 100) + '%';
+    row.querySelector('output').textContent = `${n}/${target}`;
+    box.appendChild(row);
+  }
+}
+async function runSession() {
+  if (inp.src === 'none') { $('sessMsg').textContent = 'Turn on the camera or connect the glove first.'; return; }
+  if (sessSigns().length < 2) { $('sessMsg').textContent = 'Tick at least two signs (rest counts as one).'; return; }
+  sess.on = true; $('sessBtn').textContent = 'Stop session'; $('sessTarget').disabled = true; $('sessMsg').textContent = '';
+  $('sessPrompt').hidden = false;
+  let fails = 0;
+  while (sess.on) {
+    const kind = kindNow(), target = sessTarget();
+    const todo = sessSigns().filter(n => countOf(n, kind) < target);
+    if (!todo.length) { $('sessMsg').textContent = `Done: every ticked sign has ${target} ${kind === 'cam' ? 'camera' : 'glove'} recordings. Run the accuracy test below.`; break; }
+    todo.sort((a, b) => countOf(a, kind) - countOf(b, kind));
+    selected = todo[0]; renderTrain();
+    const v = vocabOf(selected), left = todo.reduce((t, n) => t + target - countOf(n, kind), 0);
+    $('sessStep').textContent = `${countOf(selected, kind) + 1} of ${target} · ${left} recordings left`;
+    $('sessSign').textContent = selected;
+    $('sessSay').textContent = selected === 'rest' ? 'Relax your hands, or move them around randomly' : (v.say ? `"${v.say}"` : '');
+    const ok = await record();
+    if (inp.src === 'none') { $('sessMsg').textContent = 'Stopped: the input was turned off.'; break; }
+    fails = ok ? 0 : fails + 1;
+    if (fails >= 3) { $('sessMsg').textContent = 'Stopped after 3 recordings in a row weren\'t saved. Check that your hands are in view, then start again.'; break; }
+    await sleep(ok ? 700 : 1500);       // a moment to relax before the next countdown
+  }
+  sess.on = false; $('sessBtn').textContent = 'Start session'; $('sessTarget').disabled = false; $('sessPrompt').hidden = true;
+  renderTrain();
+}
+$('sessBtn').onclick = () => { if (sess.on) { sess.on = false; $('sessMsg').textContent = 'Stopping after this recording…'; } else runSession(); };
+$('sessTarget').oninput = () => renderSession();
+function gloveButton() { if (!$('tab-train').hidden) record(); }
+$('recBtn').onclick = record;
+$('undoBtn').onclick = () => {
+  for (let i = data.samples.length - 1; i >= 0; i--) if (data.samples[i].label === selected && kindOfSample(data.samples[i]) === kindNow()) {
+    deletePhotos(new Set([data.samples[i].t])); data.samples.splice(i, 1); break; }
+  save(); renderTrain();
+};
+$('addSign').onclick = () => {
+  const name = $('newName').value.trim().toLowerCase(); if (!name) return;
+  if (!vocabOf(name)) data.vocab.push({ name, say: $('newSay').value.trim() || name });
+  selected = name; $('newName').value = ''; $('newSay').value = ''; save(); renderTrain();
+};
+function countOf(name, kind) { let n = 0; for (const s of data.samples) if (s.label === name && (!kind || kindOfSample(s) === kind)) n++; return n; }
+function renderTrain() {
+  const box = $('chips'); box.innerHTML = '';
+  for (const v of data.vocab) {
+    const c = document.createElement('span'); c.className = 'chip'; c.setAttribute('aria-pressed', v.name === selected);
+    c.setAttribute('role', 'button'); c.tabIndex = 0; c.title = v.say || '(not spoken)';
+    c.innerHTML = '<span></span> <span class="n"></span>';
+    c.children[0].textContent = v.name; c.children[1].textContent = countOf(v.name, kindNow());
+    c.onclick = () => { selected = v.name; renderTrain(); };
+    c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); c.onclick(); } };
+    if (v.name !== 'rest') {
+      const x = document.createElement('button'); x.className = 'x'; x.textContent = '×'; x.setAttribute('aria-label', 'Delete ' + v.name);
+      x.onclick = e => { e.stopPropagation();
+        if (!confirm(`Delete the sign "${v.name}" and its ${countOf(v.name)} recordings?`)) return;
+        deletePhotos(new Set(data.samples.filter(s => s.label === v.name).map(s => s.t)));
+        data.vocab = data.vocab.filter(w => w !== v); data.samples = data.samples.filter(s => s.label !== v.name);
+        if (selected === v.name) selected = 'rest'; save(); renderTrain(); };
+      c.appendChild(x);
+    }
+    box.appendChild(c);
+  }
+  const simN = data.samples.filter(s => s.src === 'sim').length, camN = data.samples.filter(s => kindOfSample(s) === 'cam').length;
+  $('totals').textContent = `Counts shown: ${kindNow() === 'cam' ? 'camera' : 'glove'}. Total ${camN} camera, ${data.samples.length - camN} glove` + (simN ? ` (${simN} simulated)` : '');
+  renderPhrases(); renderSession();
+}
+function renderPhrases() {
+  const box = $('phrases'); box.innerHTML = '';
+  for (const v of data.vocab) if (v.say) {
+    const b = document.createElement('button'); b.textContent = v.say; b.onclick = () => say(v.say, 'tapped'); box.appendChild(b);
+  }
+}
+
+/* ---------------- accuracy test ---------------- */
+$('evalBtn').onclick = () => {
+  const kind = $('evalKind').value, m = modelFor(kind), out = $('evalOut');
+  if (!m) { out.innerHTML = `<p class="msg">Record at least two signs with the ${kind === 'cam' ? 'camera' : 'glove'} first.</p>`; return; }
+  const labels = data.vocab.map(v => v.name).filter(l => m.y.includes(l));
+  const cm = labels.map(() => labels.map(() => 0));
+  let right = 0;
+  m.Z.forEach((z, i) => { const p = knn(m, z, i); if (p.label === m.y[i]) right++;
+    const a = labels.indexOf(m.y[i]), b = labels.indexOf(p.label); if (a >= 0 && b >= 0) cm[a][b]++; });
+  const n = m.Z.length, simN = m.src.filter(s => s === 'sim').length, who = new Set(m.who.filter(Boolean));
+  let h = `<p style="font-size: 22px; font-weight: 800; margin: 12px 0 4px">${kind === 'cam' ? 'Camera' : 'Glove'}: ${(right / n * 100).toFixed(1)}% correct</p>
+    <p class="hint">${right} of ${n} recordings, ${labels.length} signs${who.size ? ', ' + who.size + ' signers' : ''}.</p>`;
+  if (simN) h += `<p class="msg">${simN} of these ${n} recordings are from keyboard simulation, not the glove. This number is not glove accuracy, so don't report it as one.</p>`;
+  h += '<table style="margin-top: 10px"><tr><th>Sign</th><th>Recordings</th><th>Correct</th><th>Most often mistaken for</th></tr>';
+  labels.forEach((l, a) => {
+    const tot = cm[a].reduce((x, y) => x + y, 0);
+    let worst = -1; cm[a].forEach((c, b) => { if (b !== a && c > 0 && (worst < 0 || c > cm[a][worst])) worst = b; });
+    h += `<tr><td>${esc(l)}</td><td>${tot}</td><td>${tot ? Math.round(cm[a][a] / tot * 100) : 0}%</td><td>${worst >= 0 ? esc(labels[worst]) + ' (' + cm[a][worst] + ')' : '–'}</td></tr>`;
+  });
+  h += '</table><div class="cm"><table><tr><th class="r">actual ↓ / guessed →</th>' + labels.map(l => `<th>${esc(l.slice(0, 5))}</th>`).join('') + '</tr>';
+  labels.forEach((l, a) => { h += `<tr><th class="r">${esc(l)}</th>` + cm[a].map((c, b) =>
+    `<td style="background:${c ? (a === b ? 'rgba(11,122,92,' : 'rgba(180,35,24,') + Math.min(0.85, 0.15 + c / Math.max(1, cm[a].reduce((x, y) => x + y, 0))) + ')' : 'transparent'};${c && (a === b) ? 'color:#fff' : ''}">${c || ''}</td>`).join('') + '</tr>'; });
+  out.innerHTML = h + '</table></div>';
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ---------------- import / export ---------------- */
+$('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify({ format: 'signbridge-1', ...data })], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `signbridge-data-${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(a.href);
+};
+$('importFile').onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const d = JSON.parse(await file.text());
+    if (!Array.isArray(d.samples)) throw new Error('no recordings in this file');
+    const seen = new Set(data.samples.map(s => s.t + '|' + s.label + '|' + s.who));
+    let added = 0;
+    for (const s of d.samples) { if (!Array.isArray(s.frames) || seen.has(s.t + '|' + s.label + '|' + s.who)) continue; data.samples.push(s); added++; }
+    for (const v of d.vocab || []) if (!vocabOf(v.name)) data.vocab.push(v);
+    for (const s of data.samples) if (!vocabOf(s.label)) data.vocab.push({ name: s.label, say: s.label });
+    save(); renderTrain(); setMsg('dataMsg', `Added ${added} recordings.`);
+  } catch (err) { setMsg('dataMsg', 'Could not import: ' + err.message); }
+  e.target.value = '';
+};
+$('clearBtn').onclick = () => {
+  if (!confirm(`Delete all ${data.samples.length} recordings? Export first if you want to keep them.`)) return;
+  data.samples = []; save(); renderTrain(); deletePhotos(); $('evalOut').innerHTML = '';
+};
+
+/* ---------------- setup: live bars and calibration ---------------- */
+const fbars = $('fbars');
+FINGERS.forEach((name, i) => { const r = document.createElement('div'); r.className = 'fbar';
+  r.innerHTML = `<span>${name}</span><div class="track"><i></i></div><output></output><label><input type="checkbox" id="use-${i}"> use</label>`;
+  r.querySelector('input').onchange = e => {
+    data.useFinger = FINGERS.map((_, j) => j === i ? e.target.checked : useFinger(j)); save(); renderFingerUse();
+  };
+  fbars.appendChild(r); });
+function renderFingerUse() {
+  [...fbars.children].forEach((r, i) => { r.querySelector('input').checked = useFinger(i); r.classList.toggle('off', !useFinger(i)); });
+  const off = FINGERS.filter((_, i) => !useFinger(i));
+  $('fingerNote').textContent = off.length ? `Ignored by the glove model: ${off.join(', ')}. Recordings still store them, so you can switch them back on later.` : '';
+}
+FINGERS.forEach((name, i) => { const b = document.createElement('button'); b.className = 'btn'; b.textContent = name;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); simFinger(i, true, 'p'); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => b.addEventListener(t, () => simFinger(i, false, 'p')));
+  $('simkeys').appendChild(b); });
+setInterval(() => {
+  if ($('tab-setup').hidden) return;
+  const f = inp.frame;
+  [...fbars.children].forEach((r, i) => { r.querySelector('i').style.width = (f[i] * 100) + '%';
+    r.querySelector('output').textContent = inp.src === 'ble' ? inp.raw[i] : Math.round(f[i] * 100) + '%'; });
+  const n = v => (v >= 0 ? ' ' : '') + v.toFixed(2);
+  $('imuText').textContent = inp.src === 'none' || inp.src === 'cam' ? '' :
+    `accel g  ${n(f[5])} ${n(f[6])} ${n(f[7])}   gyro x100°/s  ${n(f[8])} ${n(f[9])} ${n(f[10])}` + (inp.src === 'ble' && !inp.mpu ? '   (MPU6050 not found)' : '');
+  $('calText').textContent = data.cal ? 'Calibrated' : 'Not calibrated';
+}, 100);
+// Flex sensors creep (their resting value drifts after use). Re-zero shifts the calibration to the new resting
+// value and keeps each finger's measured bend range.
+$('zeroBtn').onclick = async () => {
+  if (!data.cal) { setMsg('setupMsg', 'Calibrate once first (open hand, then fist).'); return; }
+  $('zeroBtn').disabled = true;
+  setMsg('setupMsg', 'Hold your hand open and still…'); await new Promise(r => setTimeout(r, 600));
+  const sum = [0, 0, 0, 0, 0]; let k = 0;
+  const t = setInterval(() => { inp.raw.forEach((v, i) => sum[i] += v); k++; }, 20);
+  await new Promise(r => setTimeout(r, 1500)); clearInterval(t);
+  const open = sum.map(v => Math.round(v / Math.max(1, k)));
+  data.cal = { open, fist: open.map((o, i) => o + (data.cal.fist[i] - data.cal.open[i])) }; save();
+  setMsg('setupMsg', 'Re-zeroed. Resting values: ' + open.join(', ') + '.');
+  $('zeroBtn').disabled = inp.src !== 'ble';
+};
+$('calBtn').onclick = async () => {
+  const grab = async label => {
+    for (let s = 3; s > 0; s--) { setMsg('setupMsg', `${label} ${s}…`); await new Promise(r => setTimeout(r, 700)); }
+    const sum = [0, 0, 0, 0, 0]; let k = 0;
+    const t = setInterval(() => { inp.raw.forEach((v, i) => sum[i] += v); k++; }, 20);
+    setMsg('setupMsg', `${label} Hold still…`); await new Promise(r => setTimeout(r, 1500)); clearInterval(t);
+    return sum.map(v => Math.round(v / Math.max(1, k)));
+  };
+  $('calBtn').disabled = true;
+  const open = await grab('Open your hand flat.'), fist = await grab('Now make a tight fist.');
+  data.cal = { open, fist }; save();
+  const dead = FINGERS.filter((_, i) => Math.abs(fist[i] - open[i]) < 20);
+  setMsg('setupMsg', dead.length ? `Calibrated, but these fingers barely changed: ${dead.join(', ')}. Check their wiring, or untick "use" so the model ignores them.` : 'Calibrated.');
+  $('calBtn').disabled = inp.src !== 'ble';
+};
+$('simOn').onchange = e => setSource(e.target.checked ? 'sim' : 'none');
+
+/* ---------------- phone camera: MediaPipe, runs on this device ---------------- */
+// One pre-trained Google model, the MediaPipe Gesture Recognizer, does both jobs: it tracks 21 points on each hand
+// and classifies the hand's gesture. "ours" is the same model fine-tuned on our ISL signs with
+// ml/finetune_gesture_recognizer.ipynb, saved as app/models/signbridge_gestures.task.
+const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODELS = {
+  google: 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task',
+  ours: 'models/signbridge_gestures.task',
+};
+const GESTURES = ['Thumb_Up', 'Thumb_Down', 'Open_Palm', 'Closed_Fist', 'Pointing_Up', 'Victory', 'ILoveYou'];
+const DEFAULT_GMAP = { Thumb_Up: 'yes', Thumb_Down: 'no', Open_Palm: 'stop', Closed_Fist: 'help', Pointing_Up: 'doctor', Victory: 'thank you', ILoveYou: 'family' };
+const cam = { stream: null, facing: 'user', gr: null, grModel: null, files: null, conns: [], last: null, timer: null, on: false, vt: -1, hasOurs: false };
+const engine = () => (data.engine === 'ours' && !cam.hasOurs) ? 'google' : (data.engine || 'google');
+const usesGestureModel = () => kindNow() === 'cam' && engine() !== 'knn';
+const handMode = () => data.handMode || 'right';
+const gmap = () => ({ ...DEFAULT_GMAP, ...(data.gmap || {}) });
+
+async function loadHands() {
+  const want = engine() === 'ours' ? 'ours' : 'google';
+  if (cam.gr && cam.grModel === want) return;
+  const { FilesetResolver, GestureRecognizer, HandLandmarker } = await import(MP + '/vision_bundle.mjs');
+  if (!cam.files) cam.files = await FilesetResolver.forVisionTasks(MP + '/wasm');
+  const opts = delegate => ({ baseOptions: { modelAssetPath: MODELS[want], delegate }, runningMode: 'VIDEO', numHands: 2 });
+  let gr;
+  try { gr = await GestureRecognizer.createFromOptions(cam.files, opts('GPU')); }
+  catch (e) { gr = await GestureRecognizer.createFromOptions(cam.files, opts('CPU')); }
+  if (cam.gr) cam.gr.close();
+  cam.gr = gr; cam.grModel = want; cam.vt = -1;
+  cam.conns = GestureRecognizer.HAND_CONNECTIONS || HandLandmarker.HAND_CONNECTIONS || [];
+}
+// Handedness from MediaPipe, for our unmirrored video (front or back camera). Checked on Google's sample photo of a
+// right hand, palm to the camera, which comes out as "Right". If it's ever the wrong way round on a device, pick the
+// other hand in the menu: the status line on the video shows which hand is being tracked.
+const realHand = name => name === 'Right' ? 'right' : name === 'Left' ? 'left' : '?';
+function allHands(res) {
+  const L = (res && res.landmarks) || [], H = (res && (res.handedness || res.handednesses)) || [], G = (res && res.gestures) || [];
+  return L.map((lm, i) => { const h = H[i] && H[i][0], g = G[i] && G[i][0];
+    return { lm, hand: h ? realHand(h.categoryName) : '?', gesture: g ? g.categoryName : '', score: g ? g.score : 0 }; });
+}
+// The hands we use: the chosen hand only, or up to two ordered left to right in the picture.
+function pickHands(res) {
+  const all = allHands(res), mode = handMode();
+  return mode === 'both' ? all.slice(0, 2).sort((a, b) => a.lm[0].x - b.lm[0].x) : all.filter(h => h.hand === mode).slice(0, 1);
+}
+// Gesture model prediction for the tracked hand: { label, conf }, or null when no tracked hand is visible.
+function gesturePredict() {
+  const h = pickHands(cam.last)[0]; if (!h) return null;
+  const g = h.gesture;
+  if (!g || /^none$/i.test(g)) return { label: 'rest', conf: h.score || 1 };
+  if (engine() === 'google') { const sign = gmap()[g]; return { label: sign && vocabOf(sign) ? sign : 'rest', conf: h.score, raw: g }; }
+  if (!vocabOf(g)) { data.vocab.push({ name: g, say: g.replace(/_/g, ' ') }); save(); renderTrain(); }
+  return { label: g, conf: h.score, raw: g };
+}
+// One frame = 2 hands x (21 points x 3 + visible flag + wrist x + wrist y) = 132 numbers.
+// Points are relative to the wrist and scaled by palm size, so distance from the camera doesn't matter.
+// With one hand tracked (the default: right hand only) the second half stays zero.
+function camFrame(res) {
+  const f = new Array(132).fill(0), v = $('camVideo');
+  const asp = v.videoWidth && v.videoHeight ? v.videoWidth / v.videoHeight : 4 / 3;
+  const hands = pickHands(res).map(h => h.lm);
+  hands.forEach((lm, h) => {
+    const o = h * 66, w = lm[0], m = lm[9];
+    const sc = Math.hypot((m.x - w.x) * asp, m.y - w.y) || 1e-3;
+    lm.forEach((p, i) => { f[o + i * 3] = (p.x - w.x) * asp / sc; f[o + i * 3 + 1] = (p.y - w.y) / sc; f[o + i * 3 + 2] = (p.z - w.z) * asp / sc; });
+    f[o + 63] = 1; f[o + 64] = w.x; f[o + 65] = w.y;
+  });
+  return f;
+}
+function drawHands(res) {
+  const c = $('camCanvas'), v = $('camVideo');
+  if (c.width !== v.videoWidth || c.height !== v.videoHeight) { c.width = v.videoWidth; c.height = v.videoHeight; }
+  const g = c.getContext('2d'), lw = Math.max(2, c.width / 220), all = allHands(res), used = new Set(pickHands(res));
+  g.clearRect(0, 0, c.width, c.height);
+  all.forEach(h => {
+    const on = used.has(h);
+    g.strokeStyle = on ? '#7cf0c5' : 'rgba(200,200,200,.6)'; g.fillStyle = on ? '#ffffff' : 'rgba(220,220,220,.6)'; g.lineWidth = lw;
+    for (const cn of cam.conns) { const a = h.lm[cn.start ?? cn[0]], b = h.lm[cn.end ?? cn[1]]; if (!a || !b) continue;
+      g.beginPath(); g.moveTo(a.x * c.width, a.y * c.height); g.lineTo(b.x * c.width, b.y * c.height); g.stroke(); }
+    for (const p of h.lm) { g.beginPath(); g.arc(p.x * c.width, p.y * c.height, lw * 1.3, 0, 7); g.fill(); }
+  });
+  const t = [...used][0];
+  $('camStatus').textContent = !all.length ? 'No hands seen'
+    : !t ? `No ${handMode()} hand in view (seeing ${all.map(h => h.hand).join(' + ')})`
+    : `${t.hand === '?' ? '' : t.hand[0].toUpperCase() + t.hand.slice(1) + ' hand'}` + (t.gesture && engine() !== 'knn' ? ` · ${t.gesture} ${Math.round(t.score * 100)}%` : ' tracked');
+  [...$('gmap').querySelectorAll('label')].forEach(l => l.firstChild.classList.toggle('hit', !!t && engine() === 'google' && l.dataset.g === t.gesture));
+}
+function camLoop() {
+  if (!cam.on) return;
+  const v = $('camVideo');
+  if (cam.gr && v.readyState >= 2 && v.currentTime !== cam.vt) {
+    cam.vt = v.currentTime;
+    try { cam.last = cam.gr.recognizeForVideo(v, performance.now()); drawHands(cam.last); } catch (e) {}
+  }
+  requestAnimationFrame(camLoop);
+}
+async function openStream() {
+  if (cam.stream) cam.stream.getTracks().forEach(t => t.stop());
+  cam.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cam.facing, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+  const v = $('camVideo'); v.srcObject = cam.stream; await v.play();
+  $('camBox').classList.toggle('mirror', cam.facing === 'user');       // front camera shown like a mirror; data is not flipped
+}
+async function startCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert('The camera needs Chrome, with the page opened over https or localhost.'); return; }
+  $('camCard').hidden = false; $('camBtn').disabled = true;
+  $('camStatus').textContent = 'Loading hand tracking… (first time needs internet)';
+  try {
+    await loadHands();
+    if (inp.device) inp.device.gatt.disconnect();
+    await openStream();
+    setSource('cam');
+    cam.on = true; requestAnimationFrame(camLoop);
+    cam.timer = setInterval(() => { if (inp.src === 'cam') pushFrame(camFrame(cam.last)); }, 40);   // steady 25 frames a second
+  } catch (e) {
+    $('camStatus').textContent = 'Camera could not start: ' + (e.message || e.name);
+    if (cam.stream) cam.stream.getTracks().forEach(t => t.stop()); cam.stream = null;
+  }
+  $('camBtn').disabled = false;
+}
+function stopCamera(fromSetSource) {
+  cam.on = false; clearInterval(cam.timer); cam.timer = null; cam.last = null;
+  if (cam.stream) cam.stream.getTracks().forEach(t => t.stop()); cam.stream = null;
+  $('camVideo').srcObject = null; $('camCard').hidden = true;
+  if (!fromSetSource && inp.src === 'cam') setSource('none');
+}
+$('camBtn').onclick = () => inp.src === 'cam' ? stopCamera() : startCamera();
+$('camStop').onclick = () => stopCamera();
+$('flipBtn').onclick = async () => {
+  cam.facing = cam.facing === 'user' ? 'environment' : 'user'; inp.buf = [];
+  try { await openStream(); } catch (e) { $('camStatus').textContent = 'Could not switch camera: ' + e.message; }
+};
+$('handMode').onchange = e => { data.handMode = e.target.value; inp.buf = []; save(); };
+
+/* ---------------- model choice and the gesture → phrase table ---------------- */
+function renderEngine() {
+  $('engine').value = engine(); $('handMode').value = handMode();
+  $('engine').querySelector('[value=ours]').disabled = !cam.hasOurs;
+  $('engine').querySelector('[value=ours]').textContent = 'SignBridge fine-tuned ISL model (camera)' + (cam.hasOurs ? '' : ' – not trained yet');
+  $('gmapCard').hidden = engine() !== 'google';
+  $('engineNote').textContent = {
+    google: 'Google\'s MediaPipe Gesture Recognizer, pre-trained on everyday hand gestures. Works straight away with the camera.',
+    ours: 'Google\'s model fine-tuned on our right-hand ISL signs (transfer learning). Works straight away with the camera.',
+    knn: 'Learns from the recordings you make in the Train tab. The only option for the glove.',
+  }[engine()] + (engine() !== 'knn' && inp.src !== 'none' && inp.src !== 'cam' ? ' The glove always uses k-NN.' : '');
+  const box = $('gmap'), m = gmap(); box.innerHTML = '';
+  for (const g of GESTURES) {
+    const l = document.createElement('label'); l.dataset.g = g;
+    l.innerHTML = '<span></span><select class="btn"></select>';
+    l.firstChild.textContent = g.replace(/_/g, ' ');
+    const s = l.querySelector('select'); s.id = 'gmap-' + g; s.setAttribute('aria-label', 'Phrase for ' + g);
+    for (const v of [{ name: 'rest', say: '' }, ...data.vocab.filter(v => v.name !== 'rest')]) {
+      const o = document.createElement('option'); o.value = v.name; o.textContent = v.name === 'rest' ? '(ignore)' : v.name; s.appendChild(o); }
+    s.value = vocabOf(m[g]) ? m[g] : 'rest';
+    s.onchange = () => { data.gmap = { ...gmap(), [g]: s.value }; save(); };
+    box.appendChild(l);
+  }
+}
+$('engine').onchange = async e => {
+  data.engine = e.target.value; save(); rec.hist = []; renderEngine();
+  if (cam.on && engine() !== 'knn') {
+    $('camStatus').textContent = 'Loading model…';
+    try { await loadHands(); } catch (err) { $('camStatus').textContent = 'Could not load the model: ' + err.message; }
+  }
+};
+fetch(MODELS.ours, { method: 'HEAD' }).then(r => { cam.hasOurs = r.ok; renderEngine(); }).catch(() => {});
+
+/* ---------------- photo dataset for fine-tuning ---------------- */
+// Grab a photo of the raw (unmirrored) camera picture, as JPEG.
+function grabPhoto() {
+  const v = $('camVideo'); if (!v.videoWidth) return Promise.resolve(null);
+  const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  return new Promise(res => c.toBlob(res, 'image/jpeg', 0.85));
+}
+async function savePhotos(sample, blobs) {
+  if (!idb.db) return;
+  let i = 0; for (const b of blobs) if (b) await idb.set(`ph|${sample.t}|${i++}`, { label: sample.label, who: sample.who, blob: b });
+  updatePhotoCount();
+}
+async function photoKeys(filter) { if (!idb.db) return []; return (await idb.keys()).filter(k => typeof k === 'string' && k.startsWith('ph|') && (!filter || filter(k))); }
+async function deletePhotos(ts) { for (const k of await photoKeys(k => !ts || ts.has(+k.split('|')[1]))) await idb.del(k); updatePhotoCount(); }
+async function updatePhotoCount() { const n = (await photoKeys()).length; $('photoCount').textContent = n ? `${n} photos saved` : 'No photos yet (record with the camera)'; }
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('could not load ' + src)); document.head.appendChild(s); }); }
+$('photoZipBtn').onclick = async () => {
+  const keys = await photoKeys();
+  if (!keys.length) { setMsg('dataMsg', 'No photos yet. Record signs with the camera first.'); return; }
+  setMsg('dataMsg', 'Building the zip…');
+  try {
+    if (!window.JSZip) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+    const zip = new JSZip(), per = {};
+    for (const k of keys) {
+      const p = await idb.get(k); if (!p || !p.blob) continue;
+      const folder = p.label === 'rest' ? 'none' : p.label.replace(/[^\w-]+/g, '_');
+      per[folder] = (per[folder] || 0) + 1;
+      zip.file(`signbridge_photos/${folder}/${(p.who || 'anon').replace(/[^\w-]+/g, '_')}_${k.split('|').slice(1).join('_')}.jpg`, p.blob);
+    }
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `signbridge-photos-${new Date().toISOString().slice(0, 10)}.zip`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    setMsg('dataMsg', 'Photo dataset: ' + Object.entries(per).map(([k, n]) => `${k} ${n}`).join(', ') + '.' + (per.none ? '' : ' Record some "rest" too: fine-tuning needs a "none" folder.'));
+  } catch (err) { setMsg('dataMsg', 'Could not build the zip: ' + err.message); }
+};
+
+/* ---------------- tabs and start-up ---------------- */
+const setMsg = (id, t) => { $(id).textContent = t; };
+document.querySelectorAll('[role=tab]').forEach(t => t.onclick = () => {
+  document.querySelectorAll('[role=tab]').forEach(u => u.setAttribute('aria-selected', u === t));
+  document.querySelectorAll('section').forEach(s => s.hidden = s.id !== 'tab-' + t.dataset.tab);
+});
+$('connectBtn').onclick = connect;
+if (!navigator.bluetooth) { $('connectBtn').disabled = true; $('connectBtn').title = 'Needs Chrome on Android, Windows or Mac';
+  setMsg('setupMsg', 'This browser has no Web Bluetooth. Use Chrome on Android, Windows or Mac (not iPhone), opened over https or localhost.'); }
+if (window.speechSynthesis) speechSynthesis.getVoices();
+
+(async () => {
+  try { await idb.open(); const d = await idb.get('data'); if (d && Array.isArray(d.samples)) data = d; } catch (e) {}
+  setSource('none'); renderTrain(); renderFingerUse(); renderEngine(); updatePhotoCount();
+})();
+</script>
+</body>
+</html>
