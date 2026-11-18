@@ -222,9 +222,15 @@
       <div class="row">
         <input type="text" class="grow" id="who" placeholder="Who is signing (e.g. Aman)" style="flex: 1 1 160px">
       </div>
+      <div class="row" style="margin-top: 10px">
+        <label for="recLen" style="font-size: 14px; color: var(--muted)">Each recording</label>
+        <select id="recLen" class="btn">
+          <option value="4">4 s hold (recommended)</option><option value="2.5">2.5 s</option><option value="1.2">1.2 s (one window)</option>
+        </select>
+      </div>
       <button class="btn primary big" id="recBtn" style="margin-top: 10px">Record</button>
       <div class="progress"><i id="recBar"></i></div>
-      <p class="hint" id="recText">Press Record (or the glove button). After the 3-second countdown, hold or perform the sign for 1.2 seconds. Aim for 30+ per sign, from every teammate.</p>
+      <p class="hint" id="recText">Press Record (or the glove button). After the countdown, hold the sign for the whole bar, moving your hand a little (small tilts and shifts) so the model sees natural variation. The app cuts each recording into 1.2 s windows, so 2–3 recordings per sign are enough.</p>
       <div class="row" style="margin-top: 10px">
         <button class="btn" id="undoBtn">Undo last</button>
         <span class="spacer"></span>
@@ -236,7 +242,7 @@
       <h2>Guided dataset session</h2>
       <p class="hint" style="margin-top: 0">Records the ticked signs in turns, least-recorded first, until each one reaches the target. Hands-free: follow the big prompt and do each sign after the countdown.</p>
       <div class="row" style="margin-top: 10px">
-        <label class="row" style="gap: 8px">Recordings per sign <input type="number" id="sessTarget" min="1" max="200" value="20"></label>
+        <label class="row" style="gap: 8px">Recordings per sign <input type="number" id="sessTarget" min="1" max="200" value="2"></label>
         <span class="spacer"></span>
         <button class="btn primary" id="sessBtn">Start session</button>
       </div>
@@ -253,7 +259,7 @@
         </select>
         <button class="btn primary" id="evalBtn">Run test</button>
       </div>
-      <p class="hint">Leave-one-out test: each recording is classified by a model trained on all the others. These are real numbers you can report.</p>
+      <p class="hint">Leave-one-recording-out test: every window of a recording is classified by a model trained only on the other recordings. These are real numbers you can report.</p>
       <div id="evalOut"></div>
     </div>
 
@@ -310,6 +316,15 @@ const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 //   cam    = 132 numbers per frame at 25 Hz (up to 2 hands x 21 tracked points from the phone camera)
 const WINS = { glove: 60, cam: 30 };   // frames per recording / recognition window: 1.2 s either way
 const STEPS = { glove: 5, cam: 3 };    // how often to run the model, in frames (about 10 and 8 times a second)
+const FPS = { glove: 50, cam: 25 };
+const WSTEP = { glove: 15, cam: 8 };   // a longer recording is cut into 1.2 s windows every 0.3 s
+// All 1.2 s windows of a recording (a 1.2 s recording is one window).
+function windowsOf(fr, kind) {
+  const W = WINS[kind], st = WSTEP[kind];
+  if (fr.length <= W) return [fr];
+  const out = []; for (let a = 0; a + W <= fr.length; a += st) out.push(fr.slice(a, a + W));
+  return out;
+}
 const kindNow = () => inp.src === 'cam' ? 'cam' : 'glove';
 const kindOfSample = s => s.kind || (s.src === 'cam' ? 'cam' : 'glove');
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e', NUS_TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
@@ -354,9 +369,9 @@ function pushFrame(f) {
   const W = WINS[kindNow()];
   if (inp.src !== 'cam') inp.frame = f;
   inp.buf.push(f); if (inp.buf.length > W) inp.buf.shift();
-  if (inp.rec) { inp.rec.frames.push(f); $('recBar').style.width = (inp.rec.frames.length / W * 100) + '%';
-    if (inp.src === 'cam' && [8, 15, 22].includes(inp.rec.frames.length)) inp.rec.photos.push(grabPhoto());   // 3 photos for fine-tuning
-    if (inp.rec.frames.length >= W) { const r = inp.rec; inp.rec = null; r.done(r.frames); } }
+  if (inp.rec) { const len = inp.rec.len || W; inp.rec.frames.push(f); $('recBar').style.width = (inp.rec.frames.length / len * 100) + '%';
+    if (inp.src === 'cam' && inp.rec.frames.length % 12 === 8) inp.rec.photos.push(grabPhoto());   // a photo about every 0.5 s, for fine-tuning
+    if (inp.rec.frames.length >= len) { const r = inp.rec; inp.rec = null; r.done(r.frames); } }
   if (++inp.n % STEPS[kindNow()] === 0) recognise();
 }
 function setSource(src) {
@@ -475,23 +490,27 @@ const modelFor = kind => kind in models ? models[kind] : (models[kind] = train(k
 function train(kind) {
   const S = data.samples.filter(s => vocabOf(s.label) && kindOfSample(s) === kind);
   if (S.length < 2 || new Set(S.map(s => s.label)).size < 2) return null;
-  const X = S.map(s => features(s.frames, kind)), d = X[0].length, n = X.length;
+  // Every recording is cut into 1.2 s windows; g[] remembers which recording each window came from.
+  const X = [], yy = [], g = [], src = [], who = [];
+  S.forEach((s, si) => { for (const w of windowsOf(s.frames, kind)) { X.push(features(w, kind)); yy.push(s.label); g.push(si); src.push(s.src); who.push(s.who); } });
+  const d = X[0].length, n = X.length;
   const mu = new Array(d).fill(0), sd = new Array(d).fill(0);
   for (const x of X) x.forEach((v, j) => mu[j] += v / n);
   for (const x of X) x.forEach((v, j) => sd[j] += (v - mu[j]) ** 2 / n);
   for (let j = 0; j < d; j++) sd[j] = Math.max(Math.sqrt(sd[j]), 0.05);
   const Z = X.map(x => x.map((v, j) => (v - mu[j]) / sd[j] * WEIGHT(kind, j)));
-  const per = {}; for (const s of S) per[s.label] = (per[s.label] || 0) + 1;
-  const k = clamp(Math.min(...Object.values(per)) - 1, 1, 5);    // fewer neighbours while a sign has few recordings
-  const m = { kind, k, mu, sd, Z, y: S.map(s => s.label), src: S.map(s => s.src), who: S.map(s => s.who), far: Infinity };
-  // "Too far from anything we've seen" distance: 3x the typical nearest-neighbour distance
-  const nn = Z.map((z, i) => knn(m, z, i).nearest).filter(Number.isFinite).sort((a, b) => a - b);
+  const per = {}; for (const l of yy) per[l] = (per[l] || 0) + 1;
+  const k = clamp(Math.floor(Math.min(...Object.values(per)) / 2), 1, 5);    // fewer neighbours while a sign has few windows
+  const m = { kind, k, mu, sd, Z, y: yy, g, src, who, recs: S.length, far: Infinity };
+  // "Too far from anything we've seen" distance: 3x the typical nearest-neighbour distance (other recordings only)
+  const nn = Z.map((z, i) => knn(m, z, g[i]).nearest).filter(Number.isFinite).sort((a, b) => a - b);
   m.far = (nn[Math.floor(nn.length / 2)] || 1) * 3;
   return m;
 }
-function knn(m, z, skip = -1) {
+// skipGroup: leave out every window of that recording (so testing never sees its own recording)
+function knn(m, z, skipGroup = -1) {
   const dist = [];
-  for (let i = 0; i < m.Z.length; i++) { if (i === skip) continue;
+  for (let i = 0; i < m.Z.length; i++) { if (m.g[i] === skipGroup) continue;
     let s = 0; const r = m.Z[i]; for (let j = 0; j < z.length; j++) s += (z[j] - r[j]) ** 2; dist.push([Math.sqrt(s), m.y[i]]); }
   dist.sort((a, b) => a[0] - b[0]);
   const k = Math.min(m.k || 5, dist.length), votes = {};
@@ -583,10 +602,11 @@ async function record() {
   if (inp.src === 'none') { $('recText').textContent = 'Turn on the camera or connect the glove first.'; return false; }
   recording = true; $('recBtn').disabled = true;
   for (let s = 3; s > 0; s--) { $('recBtn').textContent = `Get ready… ${s}`; $('recBar').style.width = '0'; await new Promise(r => setTimeout(r, 700)); }
-  $('recBtn').textContent = `Sign "${selected}" now`;
   const src = inp.src, kind = kindNow();
+  const len = Math.max(WINS[kind], Math.round((+$('recLen').value || 1.2) * FPS[kind]));
+  $('recBtn').textContent = len > WINS[kind] ? `Hold "${selected}" until the bar is full` : `Sign "${selected}" now`;
   const photos = [];
-  const frames = await new Promise(done => { inp.rec = { frames: [], photos, done }; });
+  const frames = await new Promise(done => { inp.rec = { frames: [], photos, done, len }; });
   if (inp.src !== src) { $('recBtn').textContent = 'Record'; $('recBtn').disabled = false; recording = false; return false; }   // input changed mid-recording
   if (kind === 'cam' && frames.filter(f => f[63] || f[129]).length < frames.length / 2) {
     $('recBtn').textContent = 'Record'; $('recBtn').disabled = false; recording = false;
@@ -605,7 +625,7 @@ async function record() {
 const sess = { on: false };
 const DEFAULT_SESSION = ['rest', 'help', 'water', 'doctor', 'yes', 'no'];
 const sessSigns = () => (data.session && data.session.signs || DEFAULT_SESSION).filter(n => vocabOf(n));
-const sessTarget = () => clamp(Math.round(+$('sessTarget').value || 20), 1, 200);
+const sessTarget = () => clamp(Math.round(+$("sessTarget").value || 2), 1, 200);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 function renderSession() {
   const box = $('sessList'), on = new Set(sessSigns()), kind = kindNow(), target = sessTarget();
@@ -703,13 +723,13 @@ $('evalBtn').onclick = () => {
   const labels = data.vocab.map(v => v.name).filter(l => m.y.includes(l));
   const cm = labels.map(() => labels.map(() => 0));
   let right = 0;
-  m.Z.forEach((z, i) => { const p = knn(m, z, i); if (p.label === m.y[i]) right++;
+  m.Z.forEach((z, i) => { const p = knn(m, z, m.g[i]); if (p.label === m.y[i]) right++;
     const a = labels.indexOf(m.y[i]), b = labels.indexOf(p.label); if (a >= 0 && b >= 0) cm[a][b]++; });
   const n = m.Z.length, simN = m.src.filter(s => s === 'sim').length, who = new Set(m.who.filter(Boolean));
   let h = `<p style="font-size: 22px; font-weight: 800; margin: 12px 0 4px">${kind === 'cam' ? 'Camera' : 'Glove'}: ${(right / n * 100).toFixed(1)}% correct</p>
-    <p class="hint">${right} of ${n} recordings, ${labels.length} signs${who.size ? ', ' + who.size + ' signers' : ''}.</p>`;
-  if (simN) h += `<p class="msg">${simN} of these ${n} recordings are from keyboard simulation, not the glove. This number is not glove accuracy, so don't report it as one.</p>`;
-  h += '<table style="margin-top: 10px"><tr><th>Sign</th><th>Recordings</th><th>Correct</th><th>Most often mistaken for</th></tr>';
+    <p class="hint">${right} of ${n} windows correct, from ${m.recs} recordings of ${labels.length} signs${who.size ? ', ' + who.size + ' signers' : ''}. Leave-one-recording-out: each recording is tested against a model built only from the other recordings.</p>`;
+  if (simN) h += `<p class="msg">${simN} of these ${n} windows come from keyboard simulation, not the glove. This number is not glove accuracy, so don't report it as one.</p>`;
+  h += '<table style="margin-top: 10px"><tr><th>Sign</th><th>Windows</th><th>Correct</th><th>Most often mistaken for</th></tr>';
   labels.forEach((l, a) => {
     const tot = cm[a].reduce((x, y) => x + y, 0);
     let worst = -1; cm[a].forEach((c, b) => { if (b !== a && c > 0 && (worst < 0 || c > cm[a][worst])) worst = b; });

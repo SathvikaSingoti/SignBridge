@@ -13,7 +13,7 @@ Pass --ignore=pinky (or --ignore=pinky,ring) to leave broken fingers out of the 
 import json, sys
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.model_selection import StratifiedGroupKFold, cross_val_predict
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
@@ -81,20 +81,39 @@ def ignored_fingers():
     return []
 
 
+WINS = {'glove': 60, 'cam': 30}    # 1.2 s windows, as in the app
+WSTEP = {'glove': 15, 'cam': 8}    # a new window every 0.3 s
+
+
+def windows_of(fr, kind):
+    """A long recording (e.g. a 4 s hold) is cut into 1.2 s windows, exactly like the app does."""
+    W, st = WINS[kind], WSTEP[kind]
+    if len(fr) <= W:
+        return [fr]
+    return [fr[a:a + W] for a in range(0, len(fr) - W + 1, st)]
+
+
 def evaluate(samples, kind):
     feat = cam_features if kind == 'cam' else features
-    X = np.array([feat(s['frames']) for s in samples])
+    rows, ys, groups = [], [], []
+    for gi, s in enumerate(samples):
+        for w in windows_of(s['frames'], kind):
+            rows.append(feat(w)); ys.append(s['label']); groups.append(gi)
+    X = np.array(rows)
+    groups = np.array(groups)
     if kind == 'glove' and ignored_fingers():
         drop = [seg * 8 + f for seg in range(6) for f in ignored_fingers()] + [48 + f for f in ignored_fingers()]
         X = np.delete(X, drop, axis=1)
         print('Ignoring fingers:', ', '.join(FINGERS[f] for f in ignored_fingers()))
-    y = np.array([s['label'] for s in samples])
-    labels, counts = np.unique(y, return_counts=True)
-    print(f'{len(y)} recordings, {len(labels)} signs:', dict(zip(labels.tolist(), counts.tolist())))
-    folds = min(5, counts.min())
+    y = np.array(ys)
+    labels = np.unique(y)
+    rec_counts = {str(l): len({g for g, yl in zip(groups, y) if yl == l}) for l in labels}
+    print(f'{len(samples)} recordings ({len(y)} windows), {len(labels)} signs:', rec_counts)
+    folds = min(5, min(rec_counts.values()))
     if folds < 2 or len(labels) < 2:
         print('Need at least 2 signs with 2+ recordings each.'); return
-    cv = StratifiedKFold(folds, shuffle=True, random_state=0)
+    # Windows of one recording always stay in the same fold, so a model is never tested on its own recording.
+    cv = list(StratifiedGroupKFold(folds, shuffle=True, random_state=0).split(X, y, groups))
 
     models = {
         'KNN (k=5, as in the app)': make_pipeline(StandardScaler(), KNeighborsClassifier(5)),
@@ -104,7 +123,7 @@ def evaluate(samples, kind):
     for name, m in models.items():
         pred = cross_val_predict(m, X, y, cv=cv)
         acc = accuracy_score(y, pred)
-        print(f'\n=== {name}: {acc * 100:.1f}% ({folds}-fold cross-validation)')
+        print(f'\n=== {name}: {acc * 100:.1f}% ({folds}-fold cross-validation, grouped by recording)')
         print(classification_report(y, pred, zero_division=0))
         if best is None or acc > best[1]:
             best = (name, acc, pred)
