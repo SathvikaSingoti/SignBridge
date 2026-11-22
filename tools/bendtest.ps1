@@ -1,7 +1,7 @@
 # Records the glove's serial output for a while and reports, per finger, how far it moved and when.
 # Usage: & .\tools\bendtest.ps1 [-Seconds 60] [-Port COM7]
 param([int]$Seconds = 60, [string]$Port = 'COM7')
-$names = 'thumb', 'index', 'middle', 'ring', 'pinky'
+$names = 'thumb', 'index', 'middle', 'ring'
 $sp = New-Object System.IO.Ports.SerialPort $Port, 115200
 $sp.ReadTimeout = 500; $sp.DtrEnable = $false; $sp.RtsEnable = $false   # don't restart the ESP32
 $sp.Open()
@@ -10,12 +10,12 @@ while (((Get-Date) - $t0).TotalSeconds -lt $Seconds) {
   try { $line = $sp.ReadLine() } catch { continue }
   if ($line -match '^thumb') {
     $n = [regex]::Matches($line, '-?\d+') | ForEach-Object { [int]$_.Value }
-    $rows += , (@([math]::Round(((Get-Date) - $t0).TotalSeconds, 1)) + $n[0..4])
+    $rows += , (@([math]::Round(((Get-Date) - $t0).TotalSeconds, 1)) + $n[0..3])
   }
 }
 $sp.Close()
 "samples: $($rows.Count) over $Seconds s"
-for ($i = 0; $i -lt 5; $i++) {
+for ($i = 0; $i -lt 4; $i++) {
   $v = $rows | ForEach-Object { $_[$i + 1] }
   $start = ($v | Select-Object -First 5 | Measure-Object -Average).Average
   $s = $v | Measure-Object -Min -Max

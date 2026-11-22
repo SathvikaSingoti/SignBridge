@@ -105,7 +105,7 @@
   .gmap select { padding: 6px 8px; }
   .gmap .hit { color: var(--accent); font-weight: 700; }
   .imu { font-family: ui-monospace, Consolas, monospace; font-size: 13px; color: var(--muted); margin-top: 10px; }
-  .simkeys { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 10px; }
+  .simkeys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
   .simkeys button { padding: 10px 0; touch-action: none; user-select: none; }
   .simkeys button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
@@ -301,7 +301,7 @@
       <p class="hint" style="margin-top: 0">For working on the app without the glove. While it's on, a red banner says so on every screen, and anything you record is labelled as simulated.</p>
       <label class="row" style="margin-top: 8px"><input type="checkbox" id="simOn"> Use keyboard simulation</label>
       <div class="simkeys" id="simkeys"></div>
-      <p class="hint">Hold <kbd>1</kbd>–<kbd>5</kbd> to bend thumb to pinky, arrow keys tilt, <kbd>Space</kbd> shakes.</p>
+      <p class="hint">Hold <kbd>1</kbd>–<kbd>4</kbd> to bend thumb to ring, arrow keys tilt, <kbd>Space</kbd> shakes.</p>
     </div>
   </section>
 </div>
@@ -310,7 +310,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
+const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring'];      // the glove has no pinky sensor
 // Two kinds of input, each with its own recordings and model:
 //   glove  = 11 numbers per frame at 50 Hz (5 bends, accel, gyro)
 //   cam    = 132 numbers per frame at 25 Hz (up to 2 hands x 21 tracked points from the phone camera)
@@ -330,9 +330,9 @@ const kindOfSample = s => s.kind || (s.src === 'cam' ? 'cam' : 'glove');
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e', NUS_TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 
 const DEFAULT_VOCAB = [
-  ['rest', ''], ['help', 'Please help me'], ['doctor', 'I need a doctor'], ['police', 'Please call the police'],
-  ['water', 'I need water'], ['pain', 'I am in pain'], ['yes', 'Yes'], ['no', 'No'], ['thank you', 'Thank you'],
-  ['hospital', 'Take me to a hospital'], ['family', 'Please call my family'], ['stop', 'Stop'],
+  ['rest', ''], ['help', 'Please help me'], ['yes', 'Yes'], ['no', 'No'], ['thank you', 'Thank you'],
+  ['pain', 'I am in pain'], ['water', 'I need water'], ['stop', 'Stop'],
+  ['eat', 'I want to eat'], ['come', 'Please come here'], ['sleep', 'I want to sleep'], ['okay', 'Okay'],
 ].map(([name, say]) => ({ name, say }));
 
 /* ---------------- stored data ---------------- */
@@ -347,6 +347,17 @@ const idb = {
   del(k) { return new Promise((res, rej) => { const t = this.db.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = res; t.onerror = () => rej(t.error); }); },
 };
 let saveTimer = null;
+// One-time update of a saved sign list: drop the two-handed signs we no longer use (only if nothing was recorded
+// for them) and add the new one-handed signs. Camera mappings that pointed at removed signs go back to default.
+function migrateSigns() {
+  if (data.signsV2) return;
+  const gone = ['doctor', 'police', 'hospital', 'family'];
+  data.vocab = data.vocab.filter(v => !gone.includes(v.name) || data.samples.some(s => s.label === v.name));
+  for (const v of DEFAULT_VOCAB) if (!data.vocab.some(w => w.name === v.name)) data.vocab.push({ ...v });
+  if (data.gmap) for (const g in data.gmap) if (gone.includes(data.gmap[g])) delete data.gmap[g];
+  if (data.session && data.session.signs) for (const n of ['eat', 'come', 'sleep', 'okay']) if (!data.session.signs.includes(n)) data.session.signs.push(n);
+  data.signsV2 = true; models = {}; save();
+}
 function save() {
   models = {};
   clearTimeout(saveTimer);
@@ -358,7 +369,8 @@ function save() {
 const vocabOf = name => data.vocab.find(v => v.name === name);
 
 /* ---------------- input: glove or simulation ---------------- */
-// A frame is 11 numbers: bend 0..1 for 5 fingers, accel x y z in g, gyro x y z in 100 deg/s.
+// A frame is 11 numbers: bend 0..1 for thumb, index, middle, ring, then one unused slot (the old pinky, always 0),
+// accel x y z in g, gyro x y z in 100 deg/s.
 const inp = { src: 'none', raw: [0, 0, 0, 0, 0], frame: new Array(11).fill(0), flags: 0, mpu: false, count: 0, device: null, buf: [], n: 0, rec: null };
 const bendOf = (i, raw) => {
   const c = data.cal; if (!c) return clamp(raw / 4095, 0, 1);
@@ -434,13 +446,13 @@ const simFinger = (i, on, tag) => { if (on) sim.held.add(tag + i); else sim.held
 addEventListener('keydown', e => {
   if (inp.src !== 'sim' || e.target.tagName === 'INPUT' || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase(), map = { arrowleft: 'l', arrowright: 'r', arrowup: 'u', arrowdown: 'd' };
-  if ('12345'.includes(k) && k.length === 1) { e.preventDefault(); simFinger(+k - 1, true, 'k'); }
+  if ('1234'.includes(k) && k.length === 1) { e.preventDefault(); simFinger(+k - 1, true, 'k'); }
   else if (map[k]) { e.preventDefault(); sim.keys[map[k]] = 1; }
   else if (k === ' ') { e.preventDefault(); if (!e.repeat) sim.shake = 20; }
 });
 addEventListener('keyup', e => {
   const k = e.key.toLowerCase(), map = { arrowleft: 'l', arrowright: 'r', arrowup: 'u', arrowdown: 'd' };
-  if ('12345'.includes(k) && k.length === 1) simFinger(+k - 1, false, 'k');
+  if ('1234'.includes(k) && k.length === 1) simFinger(+k - 1, false, 'k');
   else if (map[k]) sim.keys[map[k]] = 0;
 });
 
@@ -464,14 +476,16 @@ function camFeatures(fr) {
   }
   return out;
 }
+// 52 numbers: 6 parts x (4 fingers + 3 accel) = 42, each finger's range = 4, gyro mean and peak per axis = 6.
+const SHAPE = [0, 1, 2, 3, 5, 6, 7];                                   // frame slots used for the part averages
 function gloveFeatures(fr) {
   const out = [], n = fr.length, SEG = 6;
   for (let s = 0; s < SEG; s++) {
-    const a = Math.floor(s * n / SEG), b = Math.floor((s + 1) * n / SEG), acc = new Array(8).fill(0);
-    for (let k = a; k < b; k++) for (let j = 0; j < 8; j++) acc[j] += fr[k][j];
-    for (let j = 0; j < 8; j++) out.push(acc[j] / (b - a));
+    const a = Math.floor(s * n / SEG), b = Math.floor((s + 1) * n / SEG), acc = new Array(SHAPE.length).fill(0);
+    for (let k = a; k < b; k++) SHAPE.forEach((j, q) => acc[q] += fr[k][j]);
+    for (let q = 0; q < SHAPE.length; q++) out.push(acc[q] / (b - a));
   }
-  for (let j = 0; j < 5; j++) { let lo = 9, hi = -9; for (const f of fr) { lo = Math.min(lo, f[j]); hi = Math.max(hi, f[j]); } out.push(hi - lo); }
+  for (let j = 0; j < 4; j++) { let lo = 9, hi = -9; for (const f of fr) { lo = Math.min(lo, f[j]); hi = Math.max(hi, f[j]); } out.push(hi - lo); }
   for (let j = 8; j < 11; j++) { let m = 0, mx = 0; for (const f of fr) { const v = Math.abs(f[j]); m += v; mx = Math.max(mx, v); } out.push(m / n, mx); }
   return out;
 }
@@ -480,8 +494,8 @@ function gloveFeatures(fr) {
 const useFinger = i => !data.useFinger || data.useFinger[i] !== false;
 const WEIGHT = (kind, j) => {
   if (kind === 'cam') return 1;
-  if (j < 48) { const c = j % 8; return c < 5 ? (useFinger(c) ? 1 : 0) : 0.6; }
-  if (j < 53) return useFinger(j - 48) ? 1 : 0;
+  if (j < 42) { const c = j % 7; return c < 4 ? (useFinger(c) ? 1 : 0) : 0.6; }
+  if (j < 46) return useFinger(j - 42) ? 1 : 0;
   return 0.6;
 };
 
@@ -623,7 +637,7 @@ async function record() {
 
 /* ---------------- guided dataset session ---------------- */
 const sess = { on: false };
-const DEFAULT_SESSION = ['rest', 'help', 'water', 'doctor', 'yes', 'no'];
+const DEFAULT_SESSION = ['rest', 'help', 'yes', 'no', 'thank you', 'pain', 'water', 'stop', 'eat', 'come', 'sleep', 'okay'];
 const sessSigns = () => (data.session && data.session.signs || DEFAULT_SESSION).filter(n => vocabOf(n));
 const sessTarget = () => clamp(Math.round(+$("sessTarget").value || 2), 1, 200);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -835,7 +849,7 @@ const MODELS = {
   ours: 'models/signbridge_gestures.task',
 };
 const GESTURES = ['Thumb_Up', 'Thumb_Down', 'Open_Palm', 'Closed_Fist', 'Pointing_Up', 'Victory', 'ILoveYou'];
-const DEFAULT_GMAP = { Thumb_Up: 'yes', Thumb_Down: 'no', Open_Palm: 'stop', Closed_Fist: 'help', Pointing_Up: 'doctor', Victory: 'thank you', ILoveYou: 'family' };
+const DEFAULT_GMAP = { Thumb_Up: 'yes', Thumb_Down: 'no', Open_Palm: 'stop', Closed_Fist: 'help', Pointing_Up: 'come', Victory: 'thank you', ILoveYou: 'okay' };
 const cam = { stream: null, facing: 'user', gr: null, grModel: null, files: null, conns: [], last: null, timer: null, on: false, vt: -1, hasOurs: false };
 const engine = () => (data.engine === 'ours' && !cam.hasOurs) ? 'google' : (data.engine || 'google');
 const usesGestureModel = () => kindNow() === 'cam' && engine() !== 'knn';
@@ -1040,6 +1054,7 @@ if (window.speechSynthesis) speechSynthesis.getVoices();
 
 (async () => {
   try { await idb.open(); const d = await idb.get('data'); if (d && Array.isArray(d.samples)) data = d; } catch (e) {}
+  migrateSigns();
   setSource('none'); renderTrain(); renderFingerUse(); renderEngine(); updatePhotoCount();
 })();
 </script>

@@ -8,7 +8,8 @@ Glove and camera recordings are trained and tested separately.
 Prints 5-fold cross-validated accuracy for KNN (the model the app uses) and a Random Forest,
 per-sign accuracy, and saves confusion_matrix_glove.png / confusion_matrix_cam.png for the report.
 Simulated (keyboard) recordings are left out unless you pass --include-sim.
-Pass --ignore=pinky (or --ignore=pinky,ring) to leave broken fingers out of the glove model.
+The glove has four flex sensors (thumb, index, middle, ring); the pinky slot in the data is not used.
+Pass --ignore=ring (or --ignore=ring,thumb) to leave a broken finger out of the glove model.
 """
 import json, sys
 import numpy as np
@@ -37,11 +38,12 @@ def cam_features(fr):
 
 
 def features(fr):
-    """Same features as index.html: 6 time-segment means of bend+accel, finger range, gyro mean/max."""
+    """Same 52 features as index.html: 6 time-segment means of the 4 fingers + accel (6 x 7), each finger's
+    range (4), and gyro mean/max per axis (6). Frame layout: 0-3 fingers, 4 unused (old pinky), 5-7 accel, 8-10 gyro."""
     fr = np.asarray(fr, dtype=float)
     segs = np.array_split(fr, 6)
-    out = [s[:, :8].mean(axis=0) for s in segs]
-    out.append(fr[:, :5].max(axis=0) - fr[:, :5].min(axis=0))
+    out = [s[:, [0, 1, 2, 3, 5, 6, 7]].mean(axis=0) for s in segs]
+    out.append(fr[:, :4].max(axis=0) - fr[:, :4].min(axis=0))
     g = np.abs(fr[:, 8:11])
     out.append(np.column_stack([g.mean(axis=0), g.max(axis=0)]).ravel())
     return np.concatenate(out)
@@ -70,11 +72,11 @@ def main():
             evaluate(S, kind)
 
 
-FINGERS = ['thumb', 'index', 'middle', 'ring', 'pinky']
+FINGERS = ['thumb', 'index', 'middle', 'ring']
 
 
 def ignored_fingers():
-    """--ignore=pinky,ring  leaves those fingers out of the glove features (like unticking "use" in the app)."""
+    """--ignore=ring,thumb  leaves those fingers out of the glove features (like unticking "use" in the app)."""
     for a in sys.argv[1:]:
         if a.startswith('--ignore='):
             return [FINGERS.index(f.strip().lower()) for f in a.split('=', 1)[1].split(',') if f.strip()]
@@ -102,7 +104,7 @@ def evaluate(samples, kind):
     X = np.array(rows)
     groups = np.array(groups)
     if kind == 'glove' and ignored_fingers():
-        drop = [seg * 8 + f for seg in range(6) for f in ignored_fingers()] + [48 + f for f in ignored_fingers()]
+        drop = [seg * 7 + f for seg in range(6) for f in ignored_fingers()] + [42 + f for f in ignored_fingers()]
         X = np.delete(X, drop, axis=1)
         print('Ignoring fingers:', ', '.join(FINGERS[f] for f in ignored_fingers()))
     y = np.array(ys)

@@ -1,9 +1,11 @@
 /*
   SignBridge glove firmware (ESP32 DevKit V1, Arduino core)
-  Streams raw sensor data to the phone app over Bluetooth LE. All recognition happens on the phone.
+  Streams raw sensor data to the SignBridge web app over Bluetooth LE. All recognition happens in the app.
+  Four flex sensors: thumb, index, middle, ring (no pinky).
 
   Packet, 17 bytes, 50 per second, Nordic UART TX characteristic (notify):
-    [0..9]   flex, uint16 little-endian, 12-bit ADC (0-4095): thumb, index, middle, ring, pinky
+    [0..7]   flex, uint16 little-endian, 12-bit ADC (0-4095): thumb, index, middle, ring
+    [8..9]   reserved, always 0 (kept so the packet layout stays the same)
     [10..12] accel x, y, z   int8, 1 unit = 1/32 g   (+-2 g range -> +-64)
     [13..15] gyro  x, y, z   int8, 1 unit = 8 deg/s  (+-1000 deg/s range)
     [16]     flags: bit0 = button held, bit1 = MPU6050 found
@@ -11,10 +13,10 @@
   WIRING (ADC1 pins only, so Bluetooth/WiFi never disables them)
     Each flex sensor: 3V3 --[flex]--+-- pin
                                     +--[10k]-- GND
-      thumb D32, index D33, middle D34, ring D35, pinky VP (GPIO 36)
+      thumb D32, index D33, middle D34, ring D35
     MPU6050: VCC 3V3, GND, SDA D21, SCL D22
     Button:  D27 -- button -- GND        (optional: starts a recording in the app)
-    Status LED: on-board blue LED (GPIO 2): blinking = waiting for phone, solid = connected
+    Status LED: on-board blue LED (GPIO 2): blinking = waiting for the app, solid = connected
 */
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -22,7 +24,8 @@
 #include <BLE2902.h>
 #include <Wire.h>
 
-const int FLEX_PINS[5] = {32, 33, 34, 35, 36};   // thumb, index, middle, ring, pinky
+const int NF = 4;                                // number of flex sensors
+const int FLEX_PINS[NF] = {32, 33, 34, 35};      // thumb, index, middle, ring
 const int BUTTON_PIN = 27;
 const int LED_PIN = 2;
 int MPU_ADDR = 0x68;
@@ -33,7 +36,7 @@ int MPU_ADDR = 0x68;
 BLECharacteristic* tx;
 bool connected = false;
 bool mpuFound = false;
-float smooth[5];
+float smooth[NF];
 unsigned long lastSend = 0, lastPrint = 0;
 
 class Callbacks : public BLEServerCallbacks {
@@ -92,7 +95,7 @@ void setup() {
   }
   Serial.println(mpuFound ? "MPU6050 found" : "No MPU6050: motion data will be zero");
 
-  for (int i = 0; i < 5; i++) smooth[i] = readFlex(FLEX_PINS[i]);
+  for (int i = 0; i < NF; i++) smooth[i] = readFlex(FLEX_PINS[i]);
 
   BLEDevice::init("SignBridge Glove");
   BLEServer* server = BLEDevice::createServer();
@@ -112,7 +115,7 @@ void loop() {
   if (millis() - lastSend < 20) return;           // 50 packets per second
   lastSend = millis();
 
-  for (int i = 0; i < 5; i++) smooth[i] = smoothStep(smooth[i], readFlex(FLEX_PINS[i]));
+  for (int i = 0; i < NF; i++) smooth[i] = smoothStep(smooth[i], readFlex(FLEX_PINS[i]));
 
   float ax = 0, ay = 0, az = 0, gx = 0, gy = 0, gz = 0;
   if (mpuFound) {
@@ -127,7 +130,8 @@ void loop() {
   bool button = digitalRead(BUTTON_PIN) == LOW;
 
   uint8_t p[17];
-  for (int i = 0; i < 5; i++) {
+  p[8] = p[9] = 0;                                // reserved
+  for (int i = 0; i < NF; i++) {
     uint16_t f = (uint16_t)constrain((int)smooth[i], 0, 4095);
     p[i * 2] = f & 0xFF; p[i * 2 + 1] = f >> 8;
   }
@@ -140,9 +144,9 @@ void loop() {
 
   if (millis() - lastPrint > 200) {               // 5 lines a second for the Serial Monitor
     lastPrint = millis();
-    Serial.printf("thumb %4d index %4d middle %4d ring %4d pinky %4d | acc %4d %4d %4d | gyro %4d %4d %4d | btn %d | %s\n",
-      (int)smooth[0], (int)smooth[1], (int)smooth[2], (int)smooth[3], (int)smooth[4],
+    Serial.printf("thumb %4d index %4d middle %4d ring %4d | acc %4d %4d %4d | gyro %4d %4d %4d | btn %d | %s\n",
+      (int)smooth[0], (int)smooth[1], (int)smooth[2], (int)smooth[3],
       (int8_t)p[10], (int8_t)p[11], (int8_t)p[12], (int8_t)p[13], (int8_t)p[14], (int8_t)p[15],
-      button, connected ? "phone connected" : "advertising");
+      button, connected ? "app connected" : "advertising");
   }
 }
