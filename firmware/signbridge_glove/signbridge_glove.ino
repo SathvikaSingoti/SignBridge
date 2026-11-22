@@ -1,11 +1,12 @@
 /*
   SignBridge glove firmware (ESP32 DevKit V1, Arduino core)
   Streams raw sensor data to the SignBridge web app over Bluetooth LE. All recognition happens in the app.
-  Four flex sensors: thumb, index, middle, ring (no pinky).
+  Four flex sensors for now: thumb, index, middle, ring. The pinky sensor was damaged and will be added back
+  on VP (GPIO 36); bytes 8-9 of the packet are kept for it.
 
   Packet, 17 bytes, 50 per second, Nordic UART TX characteristic (notify):
     [0..7]   flex, uint16 little-endian, 12-bit ADC (0-4095): thumb, index, middle, ring
-    [8..9]   reserved, always 0 (kept so the packet layout stays the same)
+    [8..9]   pinky, reserved: always 0 until the pinky sensor is added back on VP (GPIO 36)
     [10..12] accel x, y, z   int8, 1 unit = 1/32 g   (+-2 g range -> +-64)
     [13..15] gyro  x, y, z   int8, 1 unit = 8 deg/s  (+-1000 deg/s range)
     [16]     flags: bit0 = button held, bit1 = MPU6050 found
@@ -13,7 +14,7 @@
   WIRING (ADC1 pins only, so Bluetooth/WiFi never disables them)
     Each flex sensor: 3V3 --[flex]--+-- pin
                                     +--[10k]-- GND
-      thumb D32, index D33, middle D34, ring D35
+      thumb D32, index D33, middle D34, ring D35; pinky VP (GPIO 36) planned
     MPU6050: VCC 3V3, GND, SDA D21, SCL D22
     Button:  D27 -- button -- GND        (optional: starts a recording in the app)
     Status LED: on-board blue LED (GPIO 2): blinking = waiting for the app, solid = connected
@@ -25,7 +26,7 @@
 #include <Wire.h>
 
 const int NF = 4;                                // number of flex sensors
-const int FLEX_PINS[NF] = {32, 33, 34, 35};      // thumb, index, middle, ring
+const int FLEX_PINS[NF] = {32, 33, 34, 35};      // thumb, index, middle, ring (pinky later: NF = 5, add 36)
 const int BUTTON_PIN = 27;
 const int LED_PIN = 2;
 int MPU_ADDR = 0x68;
@@ -130,7 +131,7 @@ void loop() {
   bool button = digitalRead(BUTTON_PIN) == LOW;
 
   uint8_t p[17];
-  p[8] = p[9] = 0;                                // reserved
+  p[8] = p[9] = 0;                                // pinky slot, unused until the sensor is replaced
   for (int i = 0; i < NF; i++) {
     uint16_t f = (uint16_t)constrain((int)smooth[i], 0, 4095);
     p[i * 2] = f & 0xFF; p[i * 2 + 1] = f >> 8;

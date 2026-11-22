@@ -8,7 +8,8 @@ Glove and camera recordings are trained and tested separately.
 Prints 5-fold cross-validated accuracy for KNN (the model the app uses) and a Random Forest,
 per-sign accuracy, and saves confusion_matrix_glove.png / confusion_matrix_cam.png for the report.
 Simulated (keyboard) recordings are left out unless you pass --include-sim.
-The glove has four flex sensors (thumb, index, middle, ring); the pinky slot in the data is not used.
+The glove uses four flex sensors for now (thumb, index, middle, ring); the pinky slot in the data stays 0
+until the pinky sensor is replaced.
 Pass --ignore=ring (or --ignore=ring,thumb) to leave a broken finger out of the glove model.
 """
 import json, sys
@@ -39,7 +40,7 @@ def cam_features(fr):
 
 def features(fr):
     """Same 52 features as index.html: 6 time-segment means of the 4 fingers + accel (6 x 7), each finger's
-    range (4), and gyro mean/max per axis (6). Frame layout: 0-3 fingers, 4 unused (old pinky), 5-7 accel, 8-10 gyro."""
+    range (4), and gyro mean/max per axis (6). Frame layout: 0-3 fingers, 4 pinky (unused for now), 5-7 accel, 8-10 gyro."""
     fr = np.asarray(fr, dtype=float)
     segs = np.array_split(fr, 6)
     out = [s[:, [0, 1, 2, 3, 5, 6, 7]].mean(axis=0) for s in segs]

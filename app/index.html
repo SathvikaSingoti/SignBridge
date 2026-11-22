@@ -310,7 +310,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring'];      // the glove has no pinky sensor
+const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring'];      // pinky sensor to be added back later (frame slot 4)
 // Two kinds of input, each with its own recordings and model:
 //   glove  = 11 numbers per frame at 50 Hz (5 bends, accel, gyro)
 //   cam    = 132 numbers per frame at 25 Hz (up to 2 hands x 21 tracked points from the phone camera)
@@ -369,7 +369,7 @@ function save() {
 const vocabOf = name => data.vocab.find(v => v.name === name);
 
 /* ---------------- input: glove or simulation ---------------- */
-// A frame is 11 numbers: bend 0..1 for thumb, index, middle, ring, then one unused slot (the old pinky, always 0),
+// A frame is 11 numbers: bend 0..1 for thumb, index, middle, ring, then the pinky slot (always 0 until that sensor is replaced),
 // accel x y z in g, gyro x y z in 100 deg/s.
 const inp = { src: 'none', raw: [0, 0, 0, 0, 0], frame: new Array(11).fill(0), flags: 0, mpu: false, count: 0, device: null, buf: [], n: 0, rec: null };
 const bendOf = (i, raw) => {

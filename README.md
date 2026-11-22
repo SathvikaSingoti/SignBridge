@@ -72,7 +72,7 @@ python ml/train.py signbridge-data-*.json        # k-NN vs Random Forest, groupe
 | 10 kΩ resistor (33–47 kΩ gives a bigger swing) | 4 | pin → GND |
 | MPU6050 (GY-521) | 1 | SDA D21, SCL D22 |
 
-Each finger is a voltage divider read by the ESP32's ADC1 pins (ADC2 is shared with the radio). The glove has no pinky sensor.
+Each finger is a voltage divider read by the ESP32's ADC1 pins (ADC2 is shared with the radio). A pinky sensor on VP (GPIO 36) is planned: the first one was damaged during soldering, so the glove runs on four fingers until it is replaced.
 
 The firmware takes a trimmed mean of 16 reads per sample and smooths adaptively. That holds a resting finger steady but lets real bends through quickly. The app's *Re-zero* button corrects flex-sensor creep.
 
@@ -95,6 +95,7 @@ Accuracy figures will be added here after the dataset is recorded. They'll come 
 ## Limitations
 
 - **Single, isolated signs** from the right hand; no continuous sentences, no two-handed signs.
+- **No pinky sensor yet**, so handshapes that differ only in the little finger can't be told apart.
 - **The glove can't sense where the hand is** relative to the body, only finger bend, tilt and motion.
 - **Camera accuracy** depends on lighting and distance.
 - **Google's pre-trained model** knows 7 everyday gestures, not ISL. The fine-tuned model is meant to recognise ISL.

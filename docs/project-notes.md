@@ -60,8 +60,9 @@ With R_flex ≈ 25–35 kΩ straight and R_fixed = 10 kΩ, the pin sits at about
 | Index | D33 | 33 |
 | Middle | D34 | 34 |
 | Ring | D35 | 35 |
+| Pinky (planned) | VP | 36 |
 
-The glove has no pinky sensor: the first one failed after soldering, so the design uses four fingers.
+The first pinky sensor was damaged during soldering, so the glove runs on four fingers for now. A new sensor goes on VP; the packet and the app already keep a slot for it.
 
 | MPU6050 pin | Connected to |
 |---|---|
@@ -165,7 +166,7 @@ File: `index.html`, a single page that runs in Chrome or Edge.
 |---|---|
 | Firmware compiles and uploads (115200 baud, COM7) | ✅ Verified, hash checked |
 | Thumb, index, middle, ring connected | ✅ Read about 710 / 805 / 885 / 830 when straight |
-| Pinky sensor | ❌ Unreliable even after re-soldering; removed from the design |
+| Pinky sensor | ❌ Unreliable even after re-soldering; to be replaced (future scope) |
 | Thumb wire pulled out of 3V3 → reading drops to 0 | ✅ Proves the sensor is in the circuit |
 | Noise at rest after the 16-read averaging | ✅ About ±13 (range about 26) |
 | Bend response on the glove (22 Nov) | ✅ Open hand → fist: thumb 170, index 382, middle 226, ring 330 |
@@ -189,7 +190,7 @@ Report the numbers you get, and say how many people recorded and under what cond
 | AirBeat prototype: MPU not found, D33 drifting | 3V3 jumper on the wrong ESP32 pin; D33 wire one column off; breadboard rail split in the middle | Rewired from scratch with a step-by-step guide; bridged the split rails |
 | Firmware wouldn't build on Windows | The build tool couldn't find `cmd.exe` on the shell's PATH | Added the Windows system folder to PATH |
 | All four fingers jumped from about 850 to about 3000 at once | The 3V3 and GND feeds to the rails had been swapped | Swapped back; the readings returned to normal. The MPU was reverse-powered during this |
-| Pinky read 0 (then briefly 1118), then kept flickering | Damaged sensor or solder joint on the thin extension wires | Re-soldered twice; still unreliable, so the pinky was removed and the glove uses four fingers |
+| Pinky read 0 (then briefly 1118), then kept flickering | Damaged sensor or solder joint on the thin extension wires | Re-soldered twice; still unreliable, so the glove runs on four fingers until a new pinky sensor is fitted |
 | Readings noisy (±60–170) | ESP32 ADC noise | Average 16 reads per sample in firmware → about ±13 |
 | Small bend response | Bending only the stiff end, or the wrong direction; 10 kΩ isn't the ideal match for a 25 kΩ sensor | Bend the whole dark strip; use 47 kΩ (≈ √(25k × 100k)) for about twice the swing; Spectra warns that soldering on the tabs can damage the sensor |
 | Camera blocked on a phone over http | Browsers only allow camera and Bluetooth on https or localhost | Run on the laptop (localhost) or host on GitHub Pages (https) |
